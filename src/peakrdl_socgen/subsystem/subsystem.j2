@@ -1,0 +1,88 @@
+module {{ subsys.root|getName }}(
+input clk,
+input rstn
+);
+{% for master in subsys.getMasters() + subsys.getEndpoints() %}
+{% for signal in master|getSignals %}
+{% if subsys.isClk(signal) or subsys.isRst(signal) %}
+    wire {{ master.inst_name }}_{{ signal.name }};
+    assign {{ master.inst_name }}_{{ signal.name }} = {{ signal.name }}; 
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+    localparam N_ENDPOINTS = {{ subsys.getNumEndpoints() }};
+    localparam N_MASTERS = {{ subsys.getNumMasters() }};
+
+{% for signal in subsys.bus.getSignals() %}
+    wire [{{ signal.width }}*N_MASTERS-1:0] m_{{ signal.name }};
+{% endfor %}
+
+{% for signal in subsys.bus.getSignals() %}
+    wire [{{ signal.width }}*N_ENDPOINTS-1:0] ep_{{ signal.name }};
+{% endfor %}
+
+{% for master in subsys.getMasters() %}
+    {% set master_cnt = loop.index-1 %}
+    {{ master|getName }} #(
+    {% for param in master|getParameters %}
+        .{{ param.name }}({{ param.get_value() }}){% if not loop.last %}, {% endif %}
+
+    {% endfor %}
+
+    ) {{ master.inst_name }}(
+    {% for signal in master|getSignals %}
+        .{{ signal.name }}({{ master.inst_name }}_{{ signal.name }}),
+    {% endfor %}
+    {% for signal in subsys|getBusSignals %}
+        .m_{{ signal.name }}(m_{{ signal.name }}[{{ master_cnt * signal.width }} +: {{ signal.width }}]){% if not loop.last %}, {% endif %}
+
+    {% endfor %}
+
+
+    );
+{% endfor %}
+
+
+    {{ subsys.bus.interconnect_name }} #(
+        .ADDR_WIDTH({{ subsys.bus.addr_width }}),
+        .DATA_WIDTH({{ subsys.bus.data_width }}),
+        .N_MASTERS(N_MASTERS),
+        .N_SLAVES(N_ENDPOINTS),
+        .MEM_MAP( { {{ subsys.getMemmapParam() }} } )
+    ) {{ subsys.bus.interconnect_name }} (
+        // Master to interconnect slave ports
+    {% for signal in subsys.bus.getSignals() %}
+        .s_{{ signal.name }}(m_{{ signal.name }}),
+    {% endfor %}
+        // Interconnect master ports to endpoints 
+    {% for signal in subsys.bus.getSignals() %}
+        .m_{{ signal.name }}(ep_{{ signal.name }}){% if not loop.last %}, {% endif %}
+
+    {% endfor %}
+
+    );
+
+{% for slave in subsys.getSlaves() %}
+    {% set slave_cnt = loop.index-1 %}
+    {{ slave|getName }} #(
+    {% for param in slave|getParameters %}
+        .{{ param.name }}({{ param.get_value() }}){% if not loop.last %}, {% endif %}
+
+    {% endfor %}
+
+    ) {{ slave.inst_name }} (
+    {% for signal in slave|getSignals %}
+        .{{ signal.name }}({{ slave.inst_name }}_{{ signal.name }}),
+    {% endfor %}
+
+    {% for signal in subsys|getBusSignals %}
+        .s_{{ signal.name }}(ep_{{ signal.name }}[{{ slave_cnt * signal.width }} +: {{ signal.width }}]){% if not loop.last %}, {% endif %}
+
+    {% endfor %}
+
+    );
+{% endfor %}
+
+
+endmodule

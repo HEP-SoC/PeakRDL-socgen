@@ -1,0 +1,30 @@
+enum SignalType {
+    output   = 0;
+    input    = 1;
+    bidir    = 2;
+    tri      = 3;
+    clk      = 4;
+    rst      = 5;
+    wire     = 6;
+    blank    = 7;
+};
+
+property signal_type {
+    type = SignalType;
+    component = signal;
+};
+
+property master {
+    type = boolean;
+    component = addrmap;
+};
+
+property subsystem {
+    type = boolean;
+    component = addrmap;
+};
+
+property interconnect {
+    type = boolean;
+    component = addrmap;
+};
