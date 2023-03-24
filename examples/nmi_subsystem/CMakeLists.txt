@@ -11,7 +11,6 @@ add_library(${PROJECT_NAME} INTERFACE
     "${PROJECT_SOURCE_DIR}/verilog/tb.v"
     "${PROJECT_SOURCE_DIR}/verilog/nmi_master.v"
     "${PROJECT_SOURCE_DIR}/verilog/nmi_memory.v"
-    "${PROJECT_SOURCE_DIR}/verilog/nmi_interconnect.v"
     )
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY RDL_FILES 
@@ -23,4 +22,3 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY RDL_FILES
 
 peakrdl_socgen(${PROJECT_NAME} "nmi")
 iverilog(${PROJECT_NAME})
-

@@ -20,9 +20,15 @@ function(peakrdl_socgen LIB BUS)
         list(APPEND RDL_SOCGEN 
             "${SOCGEN_DIR}/interconnects/nmi/nmi_bus.rdl"
             )
+        target_sources(${LIB} INTERFACE
+            "${SOCGEN_DIR}/interconnects/nmi/nmi_interconnect.v"
+            )
     elseif(BUS STREQUAL "apb")
         list(APPEND RDL_SOCGEN 
             "${SOCGEN_DIR}/interconnects/apb/apb_bus.rdl"
+            )
+        target_sources(${LIB} INTERFACE
+            "${SOCGEN_DIR}/interconnects/apb/apb_interconnect.v"
             )
     endif()
 
