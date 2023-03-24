@@ -10,13 +10,13 @@ module nmi_master #(
     input clk,
     input rstn,
 
-    output reg m_mem_valid,
-    input  m_mem_ready,
-    output m_mem_instr,
-    output reg  [ADDR_WIDTH-1:0] m_mem_addr,
-    output  [DATA_WIDTH-1:0] m_mem_wdata,
-    input  [DATA_WIDTH-1:0] m_mem_rdata,
-    output  [WSTRB_WIDTH-1:0] m_mem_wstrb
+    output reg m_nmi_valid,
+    input  m_nmi_ready,
+    output m_nmi_instr,
+    output reg  [ADDR_WIDTH-1:0] m_nmi_addr,
+    output  [DATA_WIDTH-1:0] m_nmi_wdata,
+    input  [DATA_WIDTH-1:0] m_nmi_rdata,
+    output  [WSTRB_WIDTH-1:0] m_nmi_wstrb
     );
 
 
@@ -24,40 +24,36 @@ module nmi_master #(
 
     reg [31:0] counter;
 
-    assign m_mem_wdata = m_mem_addr + 1000;
-    assign m_mem_wstrb = 4'hf;
+    assign m_nmi_wdata = m_nmi_addr + 1000;
+    assign m_nmi_wstrb = 4'hf;
 
     always @(posedge clk) begin
         if(!rstn) begin 
-            m_mem_addr = 0;
+            m_nmi_addr <= 0;
         end else begin
-            m_mem_addr = m_mem_addr + 1;
+            m_nmi_addr <= m_nmi_addr + 1;
         end
     end
 
     
     always @(posedge clk) begin
         if(!rstn) begin 
-            req_reg = 1'b0;
+            req_reg <= 1'b0;
         end else begin
-
+            req_reg <= 1'b1;
         end
     end
 
     always @(posedge clk) begin
         if(!rstn) begin 
-            m_mem_valid = 1'b0;
+            m_nmi_valid <= 1'b0;
         end else begin
 
             if(req_reg) begin
-                m_mem_valid = 1'b1;
+                m_nmi_valid <= 1'b1;
             end
 
         end
-    end
-
-    always @(posedge clk) begin
-        req_reg <= 1'b1;
     end
 
 endmodule

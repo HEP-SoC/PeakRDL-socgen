@@ -28,3 +28,30 @@ property interconnect {
     type = boolean;
     component = addrmap;
 };
+
+property bus {
+    type = boolean;
+    component = addrmap;
+};
+
+
+// desc = "Slave select signal, should not be shared between slaves";
+property ss {
+    type = boolean;
+    component = addrmap;
+};
+
+property interconnect_name {
+    type = string;
+    component = addrmap;
+};
+
+property mosi {
+    type = boolean;
+    component = signal;
+};
+
+property miso {
+    type = boolean;
+    component = signal;
+};

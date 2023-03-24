@@ -1,5 +1,6 @@
 addrmap nmi_subsystem{
     name = "NMI subsystem";
+    nmi_bus nmi_bus;
 
     nmi_master cpu;
     // Memories
@@ -14,6 +15,8 @@ addrmap nmi_subsystem{
         .DATA_WIDTH(32),
         .ADDR_WIDTH(32)
         ) mem0;
+
+
 
         clk clk;
         rstn rstn;

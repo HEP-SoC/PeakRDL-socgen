@@ -1,0 +1,91 @@
+    
+addrmap apb_bus #(
+    longint unsigned ADDR_WIDTH = 32,
+    longint unsigned DATA_WIDTH = 32
+
+    
+    ){
+    bus;
+    interconnect_name = "apb_interconnect";
+
+    signal  { 
+        signalwidth=1; 
+        activehigh = true;
+        mosi;
+
+        desc = "Enable. This signal indicates the second and subsequent cycles of an APB transfer.";
+    } penable;
+
+    signal { 
+        signalwidth=1; 
+        activehigh = true;
+        mosi;
+
+        desc = "Direction. This signal indicates an APB write access when HIGH and an APB read access when LOW.";
+    } pwrite;
+
+    signal { 
+        signalwidth=ADDR_WIDTH; 
+        mosi;
+
+        desc = "Address. This is the APB address bus. It can be up to 32 bits wide and is driven by the peripheral bus bridge unit.";
+    } paddr;
+
+    signal { 
+        signalwidth=1; 
+        activehigh  = true;
+        mosi;
+        ss;
+
+        desc = "Select. The APB bridge unit generates this signal to each peripheral bus slave. It indicates that the slave device is selected and that a data transfer is required. There is a PSELx signal for each slave.";
+    } psel;
+
+    signal { 
+        signalwidth=DATA_WIDTH; 
+        mosi;
+
+        desc = "Write data. This bus is driven by the peripheral bus bridge unit during write cycles when PWRITE is HIGH. This bus can be up to 32 bits wide.";
+    } pwdata;
+
+    signal { 
+        signalwidth=DATA_WIDTH; 
+        miso;
+
+        desc = "Read Data. The selected slave drives this bus during read cycles when PWRITE is LOW. This bus can be up to 32-bits wide.";
+    } prdata;
+
+    signal { 
+        signalwidth=1; 
+        activehigh;
+        miso;
+
+        desc = "Ready. The slave uses this signal to extend an APB transfer.";
+    } pready;
+
+    signal { 
+        signalwidth=1; 
+        activehigh;
+        miso;
+
+        desc = "This signal indicates a transfer failure. APB peripherals are not required to support the PSLVERR pin. This is true for both existing and new APB peripheral designs. Where a peripheral does not include this pin then the appropriate input to the APB bridge is tied LOW.";
+    } pslverr;
+
+    signal { 
+        signalwidth=32/8;  // TODO CEIL, with perl maybe? 
+        mosi;
+
+        desc = "Write strobe. PSTRB indicates which byte lanes to update during a write transfer. There is one write strobe for each 8 bits of the write data bus. PSTRB[n] corresponds to PWDATA[(8n + 7):(8n)]. PSTRB must not be active during a read transfer";
+        } pstrb;
+        
+
+
+ reg {
+     name = "sw_done";
+     desc = "";
+
+     field {
+         name = "Software execution done register";
+         sw = w; hw = r;} sw_done[32] = 0;
+     } sw_done;
+
+};
