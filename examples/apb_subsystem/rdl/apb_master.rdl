@@ -1,0 +1,15 @@
+addrmap apb_master{
+    master;
+
+     reg {
+         name = "sw_done";
+         desc = "";
+    
+         field {
+             name = "Software execution done register";
+             sw = w; hw = r;} sw_done[32] = 0;
+         } sw_done;
+
+    clk clk;
+    rstn rstn;
+};

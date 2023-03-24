@@ -19,9 +19,9 @@ class Signal:
         self.node = node
         self.name = node.inst_name # TOOD check if correct
         self.width = node.width
-        self.ss = node.get_property('ss', default=False)
-        self.miso = node.get_property('miso', default=False)
-        self.mosi = node.get_property('mosi', default=False)
+        self.ss =  node.get_property('ss', default=False)    != False
+        self.miso = node.get_property('miso', default=False) != False
+        self.mosi = node.get_property('mosi', default=False) != False
 
         self.is_clk = self.isClk()
         self.is_rst = self.isRst()

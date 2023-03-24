@@ -21,7 +21,7 @@ input rstn
 
     // Endpoint interfaces
 {% for signal in subsys.bus.signals %}
-    wire [{{ signal.width }}{% if not signal.shared %}*N_ENDPOINTS{% endif %}-1:0] ep_{{ signal.name }};
+    wire [{{ signal.width }}{% if signal.ss or signal.miso %}*N_ENDPOINTS{% endif %}-1:0] ep_{{ signal.name }};
 {% endfor %}
 
     // Masters instantiations
@@ -82,7 +82,7 @@ input rstn
     {% endfor %}
 
     {% for signal in subsys.bus.signals %}
-    {% if signal.shared %} {% set sig_idx = 0 %} {% else %} {% set sig_idx = slave_cnt %} {% endif %}
+    {% if not signal.ss and not signal.miso %} {% set sig_idx = 0 %} {% else %} {% set sig_idx = slave_cnt %} {% endif %}
       .s_{{ signal.name }}(ep_{{ signal.name }}[{{ sig_idx * signal.width }} +: {{ signal.width }}]){% if not loop.last %}, {% endif %}
 
     {% endfor %}
