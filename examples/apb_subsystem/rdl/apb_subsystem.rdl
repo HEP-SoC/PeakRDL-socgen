@@ -1,6 +1,7 @@
 addrmap apb_subsystem{
     name = "APB subsystem";
     apb_bus apb_bus;
+    subsystem;
 
     apb_master cpu;
     // Memories

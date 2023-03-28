@@ -1,72 +1,113 @@
-addrmap nmi_bus #(
-    longint unsigned ADDR_WIDTH = 32,
-    longint unsigned DATA_WIDTH = 32
+signal nmi_valid #(longint unsigned W=1){ 
+    signalwidth=W; 
+    activehigh = true;
+    mosi;
+    ss;
 
-    
+    desc = "Indicates that a valid transaction was put on the bus. Valid should stay valid until the ready signal is received.";
+} ;
+
+signal nmi_ready #(longint unsigned W=1){ 
+    signalwidth=W; 
+    activehigh = true;
+    miso;
+
+    desc = "Ready is driven by the slave, and acknowledges the handshake between master and slave.";
+} ;
+
+signal nmi_instr #(longint unsigned W=1){ 
+    signalwidth=W; 
+    activehigh = true;
+    mosi;
+
+    desc = "This signal is asserted on CPU instruction fetch to indicate instruction memory read, (OPTIONAL).";
+} ;
+
+signal nmi_addr #(longint unsigned W=32){ 
+    signalwidth=W; 
+    mosi;
+
+    desc = "Address. This is the APB address bus. It can be up to 32 bits wide and is driven by the peripheral bus bridge unit.";
+} ;
+
+signal nmi_wdata #(longint unsigned W=32){ 
+    signalwidth=W; 
+    mosi;
+
+    desc = "Write data, data to be written to the slave from master.";
+} ;
+
+signal nmi_rdata #(longint unsigned W=32){ 
+    signalwidth=W; 
+    miso;
+
+    desc = "Read data, data read from the slave received by master.";
+} ;
+
+signal nmi_wstrb #(longint unsigned W=4){ 
+    signalwidth=W; 
+    mosi;
+
+    desc = "Write data, data to be written to the slave from master.";
+} ;
+
+addrmap nmi_bus #(
+    base_bus BUS = base_bus'{name:"nmi_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
     ){
     bus;
+    bus_inst = BUS;
     interconnect_name = "nmi_interconnect";
 
-    signal  { 
-        signalwidth=1; 
-        activehigh = true;
-        mosi;
-        ss;
+    nmi_valid #(.W(1))                nmi_valid;
+    nmi_ready #(.W(1))                nmi_ready;
+    nmi_instr #(.W(1))                nmi_instr;
+    nmi_addr #(.W(BUS.ADDR_WIDTH))    nmi_addr;
+    nmi_wdata #(.W(BUS.DATA_WIDTH))   nmi_wdata;
+    nmi_rdata #(.W(BUS.DATA_WIDTH))   nmi_rdata;
+    nmi_wstrb #(.W(BUS.DATA_WIDTH/8)) nmi_wstrb;
 
-        desc = "Indicates that a valid transaction was put on the bus. Valid should stay valid until the ready signal is received.";
-    } nmi_valid;
-
-    signal { 
-        signalwidth=1; 
-        activehigh = true;
-        miso;
-
-        desc = "Ready is driven by the slave, and acknowledges the handshake between master and slave.";
-    } nmi_ready;
-
-    signal  { 
-        signalwidth=1; 
-        activehigh = true;
-        mosi;
-
-        desc = "This signal is asserted on CPU instruction fetch to indicate instruction memory read, (OPTIONAL).";
-    } nmi_instr;
-
-    signal { 
-        signalwidth=ADDR_WIDTH; 
-        mosi;
-
-        desc = "Address. This is the APB address bus. It can be up to 32 bits wide and is driven by the peripheral bus bridge unit.";
-    } nmi_addr;
-
-    signal { 
-        signalwidth=DATA_WIDTH; 
-        mosi;
-
-        desc = "Write data, data to be written to the slave from master.";
-    } nmi_wdata;
-
-    signal { 
-        signalwidth=DATA_WIDTH; 
-        miso;
-
-        desc = "Read data, data read from the slave received by master.";
-    } nmi_rdata;
-
-    signal { 
-        signalwidth=DATA_WIDTH/8; 
-        mosi;
-
-        desc = "Write data, data to be written to the slave from master.";
-    } nmi_wstrb;
-
- reg {
-     name = "sw_done";
-     desc = "";
-
-     field {
-         name = "Software execution done register";
-         sw = w; hw = r;} sw_done[32] = 0;
-     } sw_done;
-
+ reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
 };
+
+
+addrmap nmi_tmr_bus #(
+    base_bus BUS = base_bus'{name:"nmi_tmr_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
+    ){
+    bus;
+    bus_inst = BUS;
+    interconnect_name = "nmi_interconnect";
+
+    nmi_valid #(.W(3))                  nmi_valid;
+    nmi_ready #(.W(3))                  nmi_ready;
+    nmi_instr #(.W(3))                  nmi_instr;
+    nmi_addr #(.W(3*BUS.ADDR_WIDTH))    nmi_addr;
+    nmi_wdata #(.W(3*BUS.DATA_WIDTH))   nmi_wdata;
+    nmi_rdata #(.W(3*BUS.DATA_WIDTH))   nmi_rdata;
+    nmi_wstrb #(.W(3*BUS.DATA_WIDTH/8)) nmi_wstrb;
+
+ reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+};
+
+property dummy_prop{
+    component = addrmap;
+    type = longint unsigned;
+};
+
+struct dummy_struct{
+    longint unsigned NUMBER;
+};
+
+property dummy_inst{
+    component = addrmap;
+    type = dummy_struct;
+};
+
+addrmap nmi_bus_dummy #(
+    dummy_struct DUMMY_PARAM = dummy_struct'{NUMBER:11}
+    ){
+    dummy_inst = DUMMY_PARAM;
+
+
+ reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+};
+

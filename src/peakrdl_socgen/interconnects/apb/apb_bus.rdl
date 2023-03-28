@@ -1,91 +1,112 @@
-    
-addrmap apb_bus #(
-    longint unsigned ADDR_WIDTH = 32,
-    longint unsigned DATA_WIDTH = 32
+signal penable #(longint unsigned W=1){ 
+    signalwidth=W; 
+    activehigh = true;
+    mosi;
 
+    desc = "Enable. This signal indicates the second and subsequent cycles of an APB transfer.";
+} ;
+
+signal pwrite #(longint unsigned W=1){ 
+    signalwidth=W; 
+    activehigh = true;
+    mosi;
+
+    desc = "Direction. This signal indicates an APB write access when HIGH and an APB read access when LOW.";
+};
+
+signal paddr #(longint unsigned W=32){ 
+    signalwidth=W; 
+    mosi;
+
+    desc = "Address. This is the APB address bus. It can be up to 32 bits wide and is driven by the peripheral bus bridge unit.";
+};
+
+signal psel  #(longint unsigned W=1){ 
+    signalwidth=W; 
+    activehigh  = true;
+    mosi;
+    ss;
+
+    desc = "Select. The APB bridge unit generates this signal to each peripheral bus slave. It indicates that the slave device is selected and that a data transfer is required. There is a PSELx signal for each slave.";
+};
+
+signal pwdata #(longint unsigned W=32){ 
+    signalwidth=W; 
+    mosi;
+
+    desc = "Write data. This bus is driven by the peripheral bus bridge unit during write cycles when PWRITE is HIGH. This bus can be up to 32 bits wide.";
+};
+
+signal prdata #(longint unsigned W=32){ 
+    signalwidth=W; 
+    miso;
+
+    desc = "Read Data. The selected slave drives this bus during read cycles when PWRITE is LOW. This bus can be up to 32-bits wide.";
+};
+
+signal pready  #(longint unsigned W=1){ 
+    signalwidth=W; 
+    activehigh;
+    miso;
+
+    desc = "Ready. The slave uses this signal to extend an APB transfer.";
+};
+
+signal pslverr  #(longint unsigned W=1){ 
+    signalwidth=W; 
+    activehigh;
+    miso;
+
+    desc = "This signal indicates a transfer failure. APB peripherals are not required to support the PSLVERR pin. This is true for both existing and new APB peripheral designs. Where a peripheral does not include this pin then the appropriate input to the APB bridge is tied LOW.";
+};
+
+signal pstrb #(longint unsigned W=4) { 
+    signalwidth=W;
+    mosi;
+
+    desc = "Write strobe. PSTRB indicates which byte lanes to update during a write transfer. There is one write strobe for each 8 bits of the write data bus. PSTRB[n] corresponds to PWDATA[(8n + 7):(8n)]. PSTRB must not be active during a read transfer";
+};
     
+
+
+addrmap apb_bus #(
+    base_bus BUS = base_bus'{name:"apb_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
     ){
     bus;
+    bus_inst = BUS;
     interconnect_name = "apb_interconnect";
 
-    signal  { 
-        signalwidth=1; 
-        activehigh = true;
-        mosi;
+    penable                         penable;
+    psel                            psel;
+    pready                          pready;
+    pwrite                          pwrite;
+    paddr   #(.W(BUS.ADDR_WIDTH))   paddr;
+    pwdata  #(.W(BUS.DATA_WIDTH))   pwdata;
+    prdata  #(.W(BUS.DATA_WIDTH))   prdata;
+    pstrb   #(.W(BUS.DATA_WIDTH/8)) pstrb;
+    pslverr                         pslverr;
 
-        desc = "Enable. This signal indicates the second and subsequent cycles of an APB transfer.";
-    } penable;
+ reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
 
-    signal { 
-        signalwidth=1; 
-        activehigh = true;
-        mosi;
+};
 
-        desc = "Direction. This signal indicates an APB write access when HIGH and an APB read access when LOW.";
-    } pwrite;
+addrmap apb_tmr_bus #(
+    base_bus BUS = base_bus'{name:"apb_tmr_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
+    ){
+    bus;
+    bus_inst = BUS;
+    interconnect_name = "apb_interconnect";
 
-    signal { 
-        signalwidth=ADDR_WIDTH; 
-        mosi;
+    penable #(.W(3))                  penable;
+    psel    #(.W(3))                  psel;
+    pready  #(.W(3))                  pready;
+    pwrite  #(.W(3))                  pwrite;
+    paddr   #(.W(3*BUS.ADDR_WIDTH))   paddr;
+    pwdata  #(.W(3*BUS.DATA_WIDTH))   pwdata;
+    prdata  #(.W(3*BUS.DATA_WIDTH))   prdata;
+    pstrb   #(.W(3*BUS.DATA_WIDTH/8)) pstrb;
+    pslverr #(.W(3))                  pslverr;
 
-        desc = "Address. This is the APB address bus. It can be up to 32 bits wide and is driven by the peripheral bus bridge unit.";
-    } paddr;
-
-    signal { 
-        signalwidth=1; 
-        activehigh  = true;
-        mosi;
-        ss;
-
-        desc = "Select. The APB bridge unit generates this signal to each peripheral bus slave. It indicates that the slave device is selected and that a data transfer is required. There is a PSELx signal for each slave.";
-    } psel;
-
-    signal { 
-        signalwidth=DATA_WIDTH; 
-        mosi;
-
-        desc = "Write data. This bus is driven by the peripheral bus bridge unit during write cycles when PWRITE is HIGH. This bus can be up to 32 bits wide.";
-    } pwdata;
-
-    signal { 
-        signalwidth=DATA_WIDTH; 
-        miso;
-
-        desc = "Read Data. The selected slave drives this bus during read cycles when PWRITE is LOW. This bus can be up to 32-bits wide.";
-    } prdata;
-
-    signal { 
-        signalwidth=1; 
-        activehigh;
-        miso;
-
-        desc = "Ready. The slave uses this signal to extend an APB transfer.";
-    } pready;
-
-    signal { 
-        signalwidth=1; 
-        activehigh;
-        miso;
-
-        desc = "This signal indicates a transfer failure. APB peripherals are not required to support the PSLVERR pin. This is true for both existing and new APB peripheral designs. Where a peripheral does not include this pin then the appropriate input to the APB bridge is tied LOW.";
-    } pslverr;
-
-    signal { 
-        signalwidth=32/8;  // TODO CEIL, with perl maybe? 
-        mosi;
-
-        desc = "Write strobe. PSTRB indicates which byte lanes to update during a write transfer. There is one write strobe for each 8 bits of the write data bus. PSTRB[n] corresponds to PWDATA[(8n + 7):(8n)]. PSTRB must not be active during a read transfer";
-        } pstrb;
-        
-
-
- reg {
-     name = "sw_done";
-     desc = "";
-
-     field {
-         name = "Software execution done register";
-         sw = w; hw = r;} sw_done[32] = 0;
-     } sw_done;
+ reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
 
 };

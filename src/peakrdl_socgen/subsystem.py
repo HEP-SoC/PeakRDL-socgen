@@ -8,20 +8,68 @@ import copy
 from enum import Enum
 
 from systemrdl.core.parameter import Parameter
+from systemrdl.rdltypes.user_struct import UserStruct
 
-from .bus import Bus, Signal, SignalType
+from .bus import Bus, Signal, SignalType, BusRDL, create_bus
+
+
+def isSubsystem(node : Node ):
+    if not isinstance(node, AddrmapNode):
+        return False
+    if node.get_property("subsystem") is not None:
+        return True 
+    return False 
+
+def getOrigTypeName(node : Node) -> str:
+    if node.orig_type_name is not None:
+        return node.orig_type_name
+    else:
+        return node.inst_name
+
+class SubsystemListener(RDLListener):
+    def __init__(self):
+        self.subsystem_nodes = []
+        self.subsystems = []
+        # Dont print anything here
+
+    def enter_Addrmap(self, node):
+        if isSubsystem(node):
+            self.subsystem_nodes.append(node)      
 
 class Subsystem:
-    def __init__(self, node : AddrmapNode):
+    def __init__(self,
+            node : AddrmapNode,
+            bus_rdlc
+            ):
+        print(node, bus_rdlc)
         # self.bus = APB_Bus(32, 32)
         self.root = node 
+        self.bus_rdlc = bus_rdlc
+        # for p in node.inst.parameters:
+        #     print("Paremeter is: ", p.name, type(p.get_value()))
 
-        self.bus = Bus(self.getBus())
+        self.bus_prop_inst = self.root.get_property("bus_inst")
+        # print("Bus: ", self.bus_rdl.name, self.bus_rdl.ADDR_WIDTH, self.bus_rdl.DATA_WIDTH)
+        print(self.bus_prop_inst.members)
 
-    def getBus(self):
-        for c in self.root.children():
-            if self.isBus(c):
-                return c
+        self.bus = create_bus(self.bus_rdlc,
+                    bus_name=self.bus_prop_inst.name,
+                    value={'name': self.bus_prop_inst.name,
+                        'ADDR_WIDTH' : self.bus_prop_inst.ADDR_WIDTH,
+                        'DATA_WIDTH': self.bus_prop_inst.DATA_WIDTH})
+
+        self.masters = self.getMasters()
+
+        self.slaves = self.getSlaves()
+        self.subsystems = self.getSubsystems()
+
+    def getBus(self, node : AddrmapNode):
+        b_prop = node.get_property("bus_inst")
+        return create_bus(self.bus_rdlc,
+                    bus_name=b_prop.name,
+                    value={'name': b_prop.name,
+                        'ADDR_WIDTH' : b_prop.ADDR_WIDTH,
+                        'DATA_WIDTH': b_prop.DATA_WIDTH})
 
     def getOrigTypeName(self, node : Node) -> str:
         if node.orig_type_name is not None:
@@ -32,6 +80,24 @@ class Subsystem:
     def getName(self, node : AddrmapNode):
         return self.getOrigTypeName(node)       
 
+    def isAdapterNeeded(self, first : Bus, second : Bus):
+        if first.name == second.name:
+            return False
+        else:
+            return True
+
+    def getAdapterName(self, first : Bus, second : Bus):
+        if first.name == "nmi_bus" and second.name == "apb_bus":
+            return "nmi2apb"
+        elif first.name == "nmi_bus"  and second.name == "nmi_tmr_bus":
+            return "nmi2nmi_tmr"
+        elif first.name == "apb_bus"  and second.name == "apb_tmr_bus":
+            return "apb2apb_tmr"
+        elif first.name == "apb_tmr_bus"  and second.name == "apb_bus":
+            return "apb_tmr2apb"
+        else:
+            assert("Adapter not supported")
+
     def getSlaves(self):
         slaves = []
         for c in self.root.children():
@@ -39,6 +105,15 @@ class Subsystem:
                 slaves.append(c)
 
         return slaves
+
+    def getSubsystems(self):
+        subsystems = []
+        for c in self.root.children():
+            if self.isSubsystem(c):
+                s = Subsystem(c, self.bus_rdlc)
+                subsystems.append(s)
+
+        return subsystems
 
     def getMasters(self):
         masters = []
@@ -51,12 +126,26 @@ class Subsystem:
     def getNumMasters(self):
         return len(self.getMasters())
 
+    def getNumMasterPorts(self):
+        num_masters = self.getNumMasters()
+        if num_masters == 0:  # If not masters, input of subsystem is master
+            return 1
+        else:
+            return num_masters
+
     def getParameters(self, node : Node):
         params = []
         for p in node.inst.parameters:
-            params.append(p)
+            if self.isHwParam(p):
+                params.append(p)
 
         return params
+
+    def isHwParam(self, param : Parameter):
+        if isinstance(param.get_value(), int):
+            return True
+        else:
+            return False
 
     def getSignals(self, node : AddrmapNode):
         signals = []

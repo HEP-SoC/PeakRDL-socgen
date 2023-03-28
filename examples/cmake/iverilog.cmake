@@ -14,6 +14,7 @@ function(iverilog LIB)
     get_target_property(V_SOURCES ${LIB} SOURCES)
     get_target_property(V_IF_SOURCES ${LIB} INTERFACE_SOURCES)
     set(V_FILES ${V_SOURCES} ${V_IF_SOURCES})
+    list(REMOVE_DUPLICATES V_FILES)
 
 
     set(EXEC "${OUTDIR}/a.out")

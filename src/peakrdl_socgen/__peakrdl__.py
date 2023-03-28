@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from jinja2.environment import nodes
 
 from peakrdl.plugins.exporter import ExporterSubcommandPlugin #pylint: disable=import-error
 from peakrdl.config import schema #pylint: disable=import-error
@@ -18,9 +19,9 @@ class Exporter(ExporterSubcommandPlugin):
     def add_exporter_arguments(self, arg_group: 'argparse.ArgumentParser') -> None:
 
         arg_group.add_argument(
-                "--ext",
+                "--buses",
                 nargs="*", 
-                help="list of addrmap modules that have implemented <name>_EXT class in <name>_ext.h header file, used for extending functionality"
+                help="list of buses"
                 )
 
         arg_group.add_argument(
@@ -35,10 +36,14 @@ class Exporter(ExporterSubcommandPlugin):
     def do_export(self, top_node: 'AddrmapNode', options: 'argparse.Namespace') -> None:
         soc = SocExporter(
         )
-        soc.export(
-            top_node,
-            options.output,
-            options.list_files,
-            options.ext,
-        )
+        
+        if options.list_files:
+            soc.list_files(top_node, options.output)
+        else:
+            soc.export(
+                nodes=top_node,
+                outdir=options.output,
+                list_files=options.list_files,
+                buses=options.buses,
+            )
 

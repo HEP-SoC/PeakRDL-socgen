@@ -16,12 +16,13 @@ module simple_apb_slave #(
     input wire [ADDR_WIDTH-1:0] s_paddr,
     input wire [DATA_WIDTH-1:0] s_pwdata,
     input wire [WSTRB_WIDTH-1:0] s_pstrb,
-    output reg [DATA_WIDTH-1:0] s_prdata,
+    output  [DATA_WIDTH-1:0] s_prdata,
     output                      s_pready,
     output reg                  s_pslverr
     );
 
 
+    assign s_prdata = ID+1;
     assign s_pready = 1'b1;
 
     always @(posedge clk) begin

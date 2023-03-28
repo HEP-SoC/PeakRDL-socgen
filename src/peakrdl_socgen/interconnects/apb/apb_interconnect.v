@@ -14,17 +14,17 @@ module apb_interconnect #(
     input   wire                        s_psel,
     input   wire [DATA_WIDTH-1:0]       s_pwdata,
     input   wire [PSTRB_WIDTH-1:0]      s_pstrb,
-    output  reg  [DATA_WIDTH-1:0]       s_prdata,
-    output  reg                         s_pready,
-    output  reg                         s_pslverr,
+    output       [DATA_WIDTH-1:0]       s_prdata,
+    output                              s_pready,
+    output                              s_pslverr,
 
     // MASTER PORTS
-    output  reg                                  m_penable,
-    output  reg                                  m_pwrite,
-    output  reg  [ADDR_WIDTH-1:0]                m_paddr,
+    output                                       m_penable,
+    output                                       m_pwrite,
+    output       [ADDR_WIDTH-1:0]                m_paddr,
     output  reg  [N_SLAVES-1:0]                  m_psel,
-    output  reg  [DATA_WIDTH-1:0]                m_pwdata,
-    output  reg  [PSTRB_WIDTH-1:0]               m_pstrb,
+    output       [DATA_WIDTH-1:0]                m_pwdata,
+    output       [PSTRB_WIDTH-1:0]               m_pstrb,
     input   wire [DATA_WIDTH*N_SLAVES-1:0]       m_prdata,
     input   wire [N_SLAVES-1:0]                  m_pready,
     input   wire [N_SLAVES-1:0]                  m_pslverr
@@ -33,35 +33,56 @@ module apb_interconnect #(
     integer j;
     always @(*) begin : match_address
         m_psel   = {N_SLAVES{1'b0}};
-        m_pwrite  = s_pwrite;
-        m_paddr  = s_paddr;
-        m_pwdata = s_pwdata;
-        m_pstrb  = s_pstrb;
-
         // generate the select signal based on the supplied address
         for (j = 0; j < N_SLAVES; j++) begin
             m_psel[j]  =  s_psel && (s_paddr >= MEM_MAP[(N_SLAVES*2-2*j)  *ADDR_WIDTH-1 -: ADDR_WIDTH] &&
                                      s_paddr <= MEM_MAP[(N_SLAVES*2-1-2*j)*ADDR_WIDTH-1 -: ADDR_WIDTH]);
         end
-
     end
 
-    // Assign other signals
-    integer i;
-    always @(*) begin
-        // default assignment - keep silent by default
-        s_prdata     = {DATA_WIDTH{1'b0}};
-        s_pready     = |(m_pready & m_psel);
-        s_pslverr    = |(m_pslverr & m_psel);
-        m_penable    = s_penable;
-        // select the right master
-        // for (i = 0; i < N_SLAVES; i=i+1) begin // TODO
-        //     if (m_psel[i]) begin
-        // //         // to peripherals
-        // //         // from peripherals
-        //         s_prdata = m_prdata[i*DATA_WIDTH-1:0];
-        //     end
-        // end
-    end
+    // Parametrizable N:1 mux
+    muxNto1_onehot #(
+        .WIDTH(DATA_WIDTH),
+        .N(N_SLAVES)
+    )   mux_prdata (
+        .in(m_prdata),
+        .out(s_prdata),
+        .sel(m_psel)
+    );
+
+    assign s_pready =  |(m_pready & m_psel);
+    assign s_pslverr = |(m_pslverr & m_psel);
+    assign m_penable = s_penable;
+    assign m_pwrite = s_pwrite;
+    assign m_paddr = s_paddr;
+    assign m_pwdata = s_pwdata;
+    assign m_pstrb = s_pstrb;
+
+endmodule
+
+module muxNto1_onehot #(
+    parameter WIDTH = 32,
+    parameter N = 2
+)
+(
+    input wire [WIDTH*N-1:0] in,
+    output wire [WIDTH-1:0] out,
+    input wire [N-1:0] sel
+);
+// Credit https://www.eevblog.com/forum/microcontrollers/simplify-verilog-code-(bus-mux)/
+  /* verilator lint_off UNOPTFLAT */
+   wire [N*WIDTH-1:0] repl;
+   genvar i;
+    generate 
+        for (i = 0; i < N; i = i + 1) begin: data_mux
+          if (0 == i)
+            assign repl[0 +: WIDTH] = {(WIDTH){sel[i]}} & in[0 +: WIDTH];
+          else
+            assign repl[i*WIDTH +: WIDTH] = repl[(i-1) * WIDTH +: WIDTH] | {(WIDTH){sel[i]}} & in[i*WIDTH +: WIDTH];
+        end
+    endgenerate
+  /* verilator lint_on UNOPTFLAT */
+    assign out = repl[(N-1)*WIDTH +: WIDTH];
+
 
 endmodule

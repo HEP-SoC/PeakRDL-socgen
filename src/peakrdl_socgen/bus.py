@@ -1,4 +1,6 @@
-from systemrdl.node import AddrmapNode, SignalNode, Node
+from typing import Dict, Any
+from systemrdl.node import AddrmapNode, SignalNode, Node, RootNode
+from systemrdl.core.parameter import Parameter
 from enum import Enum
 
 class SignalType(Enum):  # TODO make it same type as the RDL one
@@ -22,10 +24,19 @@ class Signal:
         self.ss =  node.get_property('ss', default=False)    != False
         self.miso = node.get_property('miso', default=False) != False
         self.mosi = node.get_property('mosi', default=False) != False
-
+        self.bidir = self.miso and self.mosi
         self.is_clk = self.isClk()
         self.is_rst = self.isRst()
 
+
+    def isShared(self):
+        return not self.ss and not self.miso  # TODO what happens for bidir?
+
+    def isOnlyMiso(self):
+        return self.miso and not self.mosi
+
+    def isOnlyMosi(self):
+        return self.mosi and not self.miso
 
     def isClk(self):
         typ = self.node.get_property("signal_type", default=False)
@@ -43,13 +54,27 @@ class Signal:
             return True
         return False
 
+    def print(self):
+        print("Signal: ", self.name, " Width: ", self.width, " SS: ", self.ss, " MOSI: ", self.mosi, " MISO ", self.miso)
+
+class BusRDL:
+    def __init__(self,
+            name : str,
+            addr_width : int,
+            data_width : int,
+            ):
+        self.name = name
+        self.addr_width = addr_width
+        self.data_width = data_width
 
 class Bus:
     def __init__(self, bus_node : AddrmapNode):
         self.node = bus_node
-        self.name = self.getOrigTypeName(self.node)
-        self.addr_width = self.getParamValue(self.node, "ADDR_WIDTH")
-        self.data_width = self.getParamValue(self.node, "DATA_WIDTH")
+
+        prop = self.node.get_property("bus_inst")
+        self.name = prop.name
+        self.addr_width = prop.ADDR_WIDTH
+        self.data_width = prop.DATA_WIDTH
         self.interconnect_name = self.node.get_property("interconnect_name")
 
         self.signals = self.getSignals(self.node)
@@ -99,3 +124,51 @@ class Bus:
         if node.get_property("bus") is not None:
             return True 
         return False 
+
+    def isAdapterNeeded(self, first : "Bus", second : "Bus"):
+        if first.name == second.name:
+            return False
+        else:
+            return True
+
+    def print(self):
+        print("Bus: ", self.name,
+                " Addr width: ", self.addr_width,
+                " Data width: ", self.data_width,
+                " Interconnect name ", self.interconnect_name)
+        assert(self.signals is not None)
+        for s in self.signals:
+            s.print()
+
+def create_bus(
+        rdlc,
+        bus_name : str,
+        value : Dict[str, Any],
+        bus_param_name : str = 'BUS',
+        ):
+
+    default_bus = rdlc.elaborate(
+            top_def_name=bus_name,
+            inst_name="new_inst",
+            )
+    assert(isinstance(default_bus, RootNode))
+    bus_default = default_bus.get_child_by_name("new_inst")
+    assert(isinstance(bus_default, AddrmapNode))
+
+    override_param = get_param_override(bus_param_name, value, bus_default)
+
+    new_bus_root = rdlc.elaborate(
+            top_def_name=bus_name,
+            inst_name=bus_name,
+            parameters={bus_param_name: override_param}
+            )
+    new_bus = new_bus_root.get_child_by_name(bus_name)
+
+    assert(isinstance(new_bus, AddrmapNode))
+
+    return Bus(new_bus)
+
+def get_param_override(name : str, value : Dict[str, Any], node : Node):
+    for p in node.inst.parameters:
+        if p.name == name:
+            return p.param_type(value)

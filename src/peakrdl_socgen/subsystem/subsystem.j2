@@ -1,31 +1,55 @@
 module {{ subsys.root|getName }}(
 input clk,
 input rstn
+{% if subsys.masters|length == 0%},
+    {% for s in subsys.bus.signals %}
+        {% if s.bidir %} inout {% elif s.miso %} output {% elif s.mosi %} input {% endif %} [{{ s.width-1 }}:0] s_{{ s.name }}{% if not loop.last %}, {% endif %}
+
+    {% endfor %}
+{% endif %}
 );
-{% for master in subsys.getMasters() + subsys.getEndpoints() %}
+{% for master in subsys.masters + subsys.getEndpoints() %}
 {% for signal in master|getSignals %}
 {% if signal.is_clk or signal.is_rst %}
-    wire {{ master.inst_name }}_{{ signal.name }};
-    assign {{ master.inst_name }}_{{ signal.name }} = {{ signal.name }}; 
+    wire   __i__{{ master.inst_name }}_{{ signal.name }};
+    assign __i__{{ master.inst_name }}_{{ signal.name }} = {{ signal.name }}; 
 {% endif %}
 {% endfor %}
 {% endfor %}
 
     localparam N_ENDPOINTS = {{ subsys.getNumEndpoints() }};
-    localparam N_MASTERS = {{ subsys.getNumMasters() }};
+    localparam N_MASTERS = {{ subsys.getNumMasterPorts() }};
 
-    // Master interfaces
+/*========================================================================================
+*===================== Master interfaces =================================================
+*========================================================================================*/
 {% for signal in subsys.bus.signals %}
     wire [{{ signal.width }}*N_MASTERS-1:0] m_{{ signal.name }};
 {% endfor %}
 
-    // Endpoint interfaces
+/*========================================================================================
+*===================== Endpoint interfaces ===============================================
+*========================================================================================*/
 {% for signal in subsys.bus.signals %}
     wire [{{ signal.width }}{% if signal.ss or signal.miso %}*N_ENDPOINTS{% endif %}-1:0] ep_{{ signal.name }};
 {% endfor %}
 
-    // Masters instantiations
-{% for master in subsys.getMasters() %}
+/*========================================================================================
+*===================== Masters instantiations ============================================
+*========================================================================================*/
+{% if subsys.masters|length == 0 %}
+    // Connect input interface with master interface if there is no internal master
+{% for s in subsys.bus.signals %}
+{% if s.isOnlyMiso() %}
+    assign s_{{ s.name }} = m_{{ s.name }};
+{% elif s.isOnlyMosi() %}
+    assign m_{{ s.name }} = s_{{ s.name }};
+{% else %}
+    assign m_{{ s.name }} = s_{{ s.name }}; // TODO check what if bidir
+{% endif %}
+{% endfor %}
+{% endif %}
+{% for master in subsys.masters %}
     {% set master_cnt = loop.index-1 %}
     {{ master|getName }} #(
     {% for param in master|getParameters %}
@@ -35,7 +59,7 @@ input rstn
 
     ) {{ master.inst_name }}(
     {% for signal in master|getSignals %}
-        .{{ signal.name }}({{ master.inst_name }}_{{ signal.name }}),
+        .{{ signal.name }}(__i__{{ master.inst_name }}_{{ signal.name }}),
     {% endfor %}
     {% for signal in subsys.bus.signals %}
         .m_{{ signal.name }}(m_{{ signal.name }}[{{ master_cnt * signal.width }} +: {{ signal.width }}]){% if not loop.last %}, {% endif %}
@@ -47,7 +71,9 @@ input rstn
 {% endfor %}
 
 
-    // Interconnect instantiation
+/*========================================================================================
+*===================== Interconnect instantiations =======================================
+*========================================================================================*/
     {{ subsys.bus.interconnect_name }} #(
         .ADDR_WIDTH({{ subsys.bus.addr_width }}),
         .DATA_WIDTH({{ subsys.bus.data_width }}),
@@ -67,9 +93,39 @@ input rstn
 
     );
 
-    // Slave instantiation
-{% for slave in subsys.getSlaves() %}
+/*========================================================================================
+*===================== Slaves instantiations =============================================
+*========================================================================================*/
+{% for slave in subsys.slaves %}
+    {% set ep_bus = subsys.getBus(slave) %}
     {% set slave_cnt = loop.index-1 %}
+    {% if subsys.isAdapterNeeded(subsys.bus, subsys.getBus(slave)) %}
+        {% set adapter_name = subsys.getAdapterName(subsys.bus, ep_bus) %}
+        // Instantiating adapter {{ adapter_name }}
+        {{ adapter_name }} #(
+            .DATA_WIDTH({{ ep_bus.data_width }}),
+            .ADDR_WIDTH({{ ep_bus.addr_width }})
+
+        ) adapter_{{ slave.inst_name }}_{{ adapter_name }} (
+        .clk(clk),
+        .rstn(rstn),
+    // {{ subsys.bus.name }} signals
+    {% for signal in subsys.bus.signals %}
+        {% set sig_idx = (not signal.isShared())|int * slave_cnt %}
+        .s_{{ signal.name }}(ep_{{ signal.name }}[{{ sig_idx * signal.width }} +: {{ signal.width }}]),
+    {% endfor %}
+    // {{ ep_bus.name }} signals
+    {% for signal in ep_bus.signals %}
+        .m_{{ signal.name }}(__adapt__{{slave.inst_name}}__{{ signal.name }}){% if not loop.last %}, {% endif %}
+
+    {% endfor %}
+
+        );
+    {% for signal in ep_bus.signals %}
+    wire [{{ signal.width-1 }}:0] __adapt__{{slave.inst_name}}__{{ signal.name }};
+    {% endfor %}
+    {% endif %}
+
     {{ slave|getName }} #(
     {% for param in slave|getParameters %}
         .{{ param.name }}({{ param.get_value() }}){% if not loop.last %}, {% endif %}
@@ -78,17 +134,84 @@ input rstn
 
     ) {{ slave.inst_name }} (
     {% for signal in slave|getSignals %}
-        .{{ signal.name }}({{ slave.inst_name }}_{{ signal.name }}),
+        .{{ signal.name }}(__i__{{ slave.inst_name }}_{{ signal.name }}),
     {% endfor %}
 
-    {% for signal in subsys.bus.signals %}
+    {% for signal in ep_bus.signals %}
+    {% if subsys.isAdapterNeeded(subsys.bus, subsys.getBus(slave)) %}
+      .s_{{ signal.name }}(__adapt__{{slave.inst_name}}__{{ signal.name }}){% if not loop.last %}, {% endif %}
+
+    {% else %}
     {% if not signal.ss and not signal.miso %} {% set sig_idx = 0 %} {% else %} {% set sig_idx = slave_cnt %} {% endif %}
       .s_{{ signal.name }}(ep_{{ signal.name }}[{{ sig_idx * signal.width }} +: {{ signal.width }}]){% if not loop.last %}, {% endif %}
 
+    {% endif %}
     {% endfor %}
 
     );
 {% endfor %}
 
+/*========================================================================================
+*===================== Adapters instantiation ============================================
+*========================================================================================*/
+{% set subs_cnt = subsys.slaves|length %}
+{% for subs in subsys.subsystems %}
+    {% for signal in subs.bus.signals %}
+    wire [{{ signal.width-1 }}:0] adapt_{{ signal.name }};
+    {% endfor %}
+
+    {% if subsys.isAdapterNeeded(subsys.bus, subs.bus) %}
+        // Instantiating adapter {{ subsys.getAdapterName(subsys.bus, subs.bus) }}
+    {{ subsys.getAdapterName(subsys.bus, subs.bus) }} #(
+        .ADDR_WIDTH({{ subsys.bus.addr_width }}),
+        .DATA_WIDTH({{ subsys.bus.data_width }})
+    ) {{ subsys.getAdapterName(subsys.bus, subs.bus) }}(
+        .clk(clk),
+        .rstn(rstn),
+
+    // {{ subsys.bus.name }} signals
+    {% for signal in subsys.bus.signals %}
+        {% set sig_idx = (not signal.isShared())|int * subs_cnt %}
+        .s_{{ signal.name }}(ep_{{ signal.name }}[{{ sig_idx * signal.width }} +: {{ signal.width }}]),
+    {% endfor %}
+    // {{ subs.bus.name }} signals
+    {% for signal in subs.bus.signals %}
+        .m_{{ signal.name }}(adapt_{{ signal.name }}){% if not loop.last %}, {% endif %}
+
+    {% endfor %}
+    );
+    {% else %}
+    {% for s in subs.bus.signals %}
+        {% set sig_idx = (not s.isShared())|int * subs_cnt %}
+        {% if s.isOnlyMiso() %}
+    assign ep_{{ s.name }}[{{ sig_idx * s.width }} +: {{ s.width }}] = adapt_{{ s.name }};
+        {% elif s.isOnlyMosi() %}
+    assign adapt_{{ s.name }} = ep_{{ s.name }}[{{ sig_idx * s.width }} +: {{ s.width }}];
+        {% else %}
+    assign adapt_{{ s.name }} = ep_{{ s.name }}[{{ sig_idx * s.width }} +: {{ s.width }}]; // TODO check what if bidir
+        {% endif %}
+    {% endfor %}
+    {% endif %}
+    {% set subs_cnt = subs_cnt + 1 %}
+{% endfor %}
+/*========================================================================================
+*===================== Subsystems instantiations =========================================
+*========================================================================================*/
+
+{% for subs in subsys.subsystems %}
+    {% set subs_cnt = loop.index-1 %}
+    {{ subs.root|getName }} {{ subs.root.inst_name }} (
+    {% for signal in subs.root|getSignals %}
+        .{{ signal.name }}(__i__{{ subs.root.inst_name }}_{{ signal.name }}),
+    {% endfor %}
+
+    {% for signal in subs.bus.signals %}
+    {% if not signal.ss and not signal.miso %} {% set sig_idx = 0 %} {% else %} {% set sig_idx = subs_cnt %} {% endif %}
+      .s_{{ signal.name }}(adapt_{{ signal.name }}){% if not loop.last %}, {% endif %}
+
+    {% endfor %}
+
+    );
+{% endfor %}
 
 endmodule

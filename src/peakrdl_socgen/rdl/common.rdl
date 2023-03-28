@@ -55,3 +55,27 @@ property miso {
     type = boolean;
     component = signal;
 };
+
+signal  clk { 
+    signalwidth=1; 
+    desc = "Input clock";
+    signal_type = SignalType::clk;
+    };
+
+signal rstn { 
+    signalwidth=1; 
+    desc = "Input reset, active low";
+    activelow = true;
+    signal_type = SignalType::rst;
+    };
+
+struct base_bus{
+    string name;
+    longint unsigned ADDR_WIDTH;
+    longint unsigned DATA_WIDTH;
+};
+
+property bus_inst{
+    component = addrmap;
+    type = base_bus;
+};

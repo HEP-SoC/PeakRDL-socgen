@@ -1,25 +1,26 @@
-addrmap nmi_subsystem{
+addrmap nmi_subsystem #(
+    base_bus BUS = base_bus'{name:"nmi_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
+){
     name = "NMI subsystem";
-    nmi_bus nmi_bus;
+    bus_inst = BUS;
     subsystem;
 
-    nmi_master cpu;
     // Memories
     nmi_memory #(
         .MEM_SIZE(1024),
         .DATA_WIDTH(32),
         .ADDR_WIDTH(32)
-        ) bootmem;
+        ) submem0;
 
     nmi_memory #(
         .MEM_SIZE(64000),
         .DATA_WIDTH(32),
         .ADDR_WIDTH(32)
-        ) mem0;
-
+        ) submem1;
 
 
         clk clk;
         rstn rstn;
 
 };
+
