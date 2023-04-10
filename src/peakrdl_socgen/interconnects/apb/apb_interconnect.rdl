@@ -1,0 +1,23 @@
+addrmap apb_interconnect #(
+    longint unsigned N_SLAVES = 4,
+    longint unsigned DATA_WIDTH = 32,
+    longint unsigned ADDR_WIDTH = 32,
+
+    longint unsigned MEM_MAP[]
+
+    ){
+
+    apb_intf #(
+        .INTF(intf_t'{name:"apb_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"s_", modport:Modport::slave }),
+        .N(1)
+        )  s_;
+
+    apb_intf #(
+        .INTF(intf_t'{name:"apb_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"m_", modport:Modport::master }),
+        .N(N_SLAVES)
+        )  m_;
+
+    reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+
+};
+

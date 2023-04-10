@@ -1,0 +1,30 @@
+addrmap axi_interconnect #(
+    longint unsigned N_SLAVES = 2,
+    longint unsigned N_MASTERS = 2,
+    longint unsigned DATA_WIDTH = 64,
+    longint unsigned ADDR_WIDTH = 32,
+
+    longint unsigned SLAVE_ADDR[],
+    longint unsigned SLAVE_MASK[]
+
+
+    ){
+
+    axi_intf #(
+        .INTF(intf_t'{name:"axi_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"slv_axi_", modport:Modport::slave }),
+        .N(N_MASTERS)
+        )  slv_axi_;
+
+    axi_intf #(
+        .INTF(intf_t'{name:"axi_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"mst_axi_", modport:Modport::master }),
+        .N(N_SLAVES)
+        )  mst_axi_;
+
+    reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+
+    clk S_AXI_ACLK;
+    rstn S_AXI_ARESETN;
+
+};
+
+

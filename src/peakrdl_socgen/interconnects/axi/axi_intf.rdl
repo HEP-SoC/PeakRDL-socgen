@@ -1,0 +1,97 @@
+signal awid #(longint unsigned W=2){ signalwidth=W; mosi; ss; };
+signal awaddr #(longint unsigned W=32){ signalwidth=W; mosi; ss; };
+signal awlen #(longint unsigned W=8){ signalwidth=W; mosi; ss; };
+signal awsize #(longint unsigned W=3){ signalwidth=W; mosi; ss; };
+signal awburst #(longint unsigned W=2){ signalwidth=W; mosi; ss; };
+signal awlock #(longint unsigned W=2){ signalwidth=W; mosi; ss; };
+signal awcache #(longint unsigned W=4){ signalwidth=W; mosi; ss; };
+signal awprot #(longint unsigned W=3){ signalwidth=W; mosi; ss; };
+signal awqos #(longint unsigned W=4){ signalwidth=W; mosi; ss; };
+signal awvalid #(longint unsigned W=1){ signalwidth=W; mosi; ss; };
+signal awready #(longint unsigned W=1){ signalwidth=W; miso; ss; };
+
+signal wdata #(longint unsigned W=32){ signalwidth=W; mosi; ss; };
+signal wstrb #(longint unsigned W=4){ signalwidth=W; mosi; ss; };
+signal wlast #(longint unsigned W=1){ signalwidth=W; mosi; ss; };
+signal wvalid #(longint unsigned W=1){ signalwidth=W; mosi; ss;};
+signal wready #(longint unsigned W=1){ signalwidth=W; miso; ss;};
+
+signal bid #(longint unsigned W=2){ signalwidth=W; miso; ss; };
+signal bresp #(longint unsigned W=2){  signalwidth=W;  miso; ss; };
+signal bvalid #(longint unsigned W=1){ signalwidth=W; miso; ss;};
+signal bready #(longint unsigned W=1){ signalwidth=W; mosi; ss;};
+
+signal arid #(longint unsigned W=2){ signalwidth=W; mosi; ss;};
+signal araddr #(longint unsigned W=32){ signalwidth=W; mosi; ss; };
+signal arlen #(longint unsigned W=8){ signalwidth=W; mosi; ss; };
+signal arsize #(longint unsigned W=3){ signalwidth=W; mosi; ss; };
+signal arburst #(longint unsigned W=2){ signalwidth=W; mosi; ss; };
+signal arlock #(longint unsigned W=2){ signalwidth=W; mosi; ss; };
+signal arcache #(longint unsigned W=3){ signalwidth=W; mosi; ss; };
+signal arprot #(longint unsigned W=3){ signalwidth=W; mosi; ss; };
+signal arqos #(longint unsigned W=4){ signalwidth=W; mosi; ss; };
+signal arvalid #(longint unsigned W=1){ signalwidth=W; mosi; ss; };
+signal arready #(longint unsigned W=1){ signalwidth=W; miso; ss; };
+
+signal rid #(longint unsigned W=2){ signalwidth=W; miso; ss; };
+signal rdata #(longint unsigned W=32){ signalwidth=W; miso; ss; };
+signal rresp #(longint unsigned W=2){ signalwidth=W; miso; ss; };
+signal rlast #(longint unsigned W=1){ signalwidth=W; miso; ss; };
+signal rvalid #(longint unsigned W=1){ signalwidth=W; miso; ss; };
+signal rready #(longint unsigned W=1){ signalwidth=W; mosi; ss; };
+
+
+addrmap axi_intf #(
+    intf_t INTF = intf_t'{name:"axi_intf", ADDR_WIDTH:32, DATA_WIDTH:32, prefix:"", modport:Modport::slave},
+    longint unsigned N=1
+    ){
+    intf;
+    intf_inst = INTF;
+    n_array = N;
+
+    awid    #(.W(N*2))                  awid;
+    awaddr  #(.W(N*INTF.ADDR_WIDTH))    awaddr;
+    awlen   #(.W(N*8))                  awlen;
+    awsize  #(.W(N*3))                  awsize;
+    awburst #(.W(N*2))                  awburst;
+    awlock  #(.W(N*2))                  awlock;
+    awcache #(.W(N*4))                  awcache;
+    awprot  #(.W(N*3))                  awprot;
+    awqos   #(.W(N*4))                  awqos;
+    awvalid #(.W(N))                    awvalid;
+    awready #(.W(N))                    awready;
+    
+    wdata   #(.W(N*INTF.DATA_WIDTH))    wdata;
+    wstrb   #(.W(N*INTF.DATA_WIDTH/8))  wstrb;
+    wlast   #(.W(N))                    wlast;
+    wvalid  #(.W(N))                    wvalid;
+    wready  #(.W(N))                    wready;
+    
+    bid     #(.W(N*2))                  bid;
+    bresp   #(.W(N*2))                  bresp;
+    bvalid  #(.W(N))                    bvalid;
+    bready  #(.W(N))                    bready;
+    
+    arid    #(.W(N*2))                  arid;
+    araddr  #(.W(N*INTF.ADDR_WIDTH))    araddr;
+    arlen   #(.W(N*8))                  arlen;
+    arsize  #(.W(N*3))                  arsize;
+    arburst #(.W(N*2))                  arburst;
+    arlock  #(.W(N*2))                  arlock;
+    arcache #(.W(N*3))                  arcache;
+    arprot  #(.W(N*3))                  arprot;
+    arqos   #(.W(N*4))                  arqos;
+    arvalid #(.W(N*1))                  arvalid;
+    arready #(.W(N*1))                  arready;
+    
+    rid     #(.W(N*2))                  rid;
+    rdata   #(.W(N*INTF.DATA_WIDTH))    rdata;
+    rresp   #(.W(N*2))                  rresp;
+    rlast   #(.W(N*1))                  rlast;
+    rvalid  #(.W(N*1))                  rvalid;
+    rready  #(.W(N*1))                  rready;
+
+
+ reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+
+};

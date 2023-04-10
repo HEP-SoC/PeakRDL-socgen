@@ -51,62 +51,39 @@ signal nmi_wstrb #(longint unsigned W=4){
     desc = "Write data, data to be written to the slave from master.";
 } ;
 
-addrmap nmi_bus #(
-    base_bus BUS = base_bus'{name:"nmi_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
+addrmap nmi_intf #(
+    intf_t INTF = intf_t'{name:"nmi_intf", ADDR_WIDTH:32, DATA_WIDTH:32, prefix:"", modport:Modport::slave},
+    longint unsigned N=1
     ){
-    bus;
-    bus_inst = BUS;
-    interconnect_name = "nmi_interconnect";
+    intf;
+    intf_inst = INTF;
+    n_array = N;
 
-    nmi_valid #(.W(1))                nmi_valid;
-    nmi_ready #(.W(1))                nmi_ready;
+    nmi_valid #(.W(N))                nmi_valid;
+    nmi_ready #(.W(N))                nmi_ready;
     nmi_instr #(.W(1))                nmi_instr;
-    nmi_addr #(.W(BUS.ADDR_WIDTH))    nmi_addr;
-    nmi_wdata #(.W(BUS.DATA_WIDTH))   nmi_wdata;
-    nmi_rdata #(.W(BUS.DATA_WIDTH))   nmi_rdata;
-    nmi_wstrb #(.W(BUS.DATA_WIDTH/8)) nmi_wstrb;
+    nmi_addr #(.W(INTF.ADDR_WIDTH))    nmi_addr;
+    nmi_wdata #(.W(INTF.DATA_WIDTH))   nmi_wdata;
+    nmi_rdata #(.W(N*INTF.DATA_WIDTH))   nmi_rdata;
+    nmi_wstrb #(.W(INTF.DATA_WIDTH/8)) nmi_wstrb;
 
  reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
 };
 
 
-addrmap nmi_tmr_bus #(
-    base_bus BUS = base_bus'{name:"nmi_tmr_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
+addrmap nmi_tmr_intf #(
+    intf_t INTF = intf_t'{name:"nmi_tmr_intf", ADDR_WIDTH:32, DATA_WIDTH:32, prefix:"", modport:Modport::slave}
     ){
-    bus;
-    bus_inst = BUS;
-    interconnect_name = "nmi_interconnect";
+    intf;
+    intf_inst = INTF;
 
     nmi_valid #(.W(3))                  nmi_valid;
     nmi_ready #(.W(3))                  nmi_ready;
     nmi_instr #(.W(3))                  nmi_instr;
-    nmi_addr #(.W(3*BUS.ADDR_WIDTH))    nmi_addr;
-    nmi_wdata #(.W(3*BUS.DATA_WIDTH))   nmi_wdata;
-    nmi_rdata #(.W(3*BUS.DATA_WIDTH))   nmi_rdata;
-    nmi_wstrb #(.W(3*BUS.DATA_WIDTH/8)) nmi_wstrb;
-
- reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
-};
-
-property dummy_prop{
-    component = addrmap;
-    type = longint unsigned;
-};
-
-struct dummy_struct{
-    longint unsigned NUMBER;
-};
-
-property dummy_inst{
-    component = addrmap;
-    type = dummy_struct;
-};
-
-addrmap nmi_bus_dummy #(
-    dummy_struct DUMMY_PARAM = dummy_struct'{NUMBER:11}
-    ){
-    dummy_inst = DUMMY_PARAM;
-
+    nmi_addr #(.W(3*INTF.ADDR_WIDTH))    nmi_addr;
+    nmi_wdata #(.W(3*INTF.DATA_WIDTH))   nmi_wdata;
+    nmi_rdata #(.W(3*INTF.DATA_WIDTH))   nmi_rdata;
+    nmi_wstrb #(.W(3*INTF.DATA_WIDTH/8)) nmi_wstrb;
 
  reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
 };

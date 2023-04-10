@@ -1,4 +1,4 @@
-addrmap apb_master{
+addrmap apb_master {
     master;
 
     reg {

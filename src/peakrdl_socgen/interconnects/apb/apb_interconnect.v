@@ -1,6 +1,5 @@
 module apb_interconnect #(
-    parameter  N_SLAVES       = 3,
-    parameter  N_MASTERS      = 1,
+    parameter  N_SLAVES   = 3,
     parameter  DATA_WIDTH = 32,
     parameter  ADDR_WIDTH = 32,
     parameter [N_SLAVES*2*ADDR_WIDTH-1:0] MEM_MAP = {32'h0000_0000, 32'h0000_1FFF, 32'h0000_2000, 32'h0000_3FFF, 32'h0000_4000, 32'h0000_9FFF},

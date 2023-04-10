@@ -19,9 +19,9 @@ class Exporter(ExporterSubcommandPlugin):
     def add_exporter_arguments(self, arg_group: 'argparse.ArgumentParser') -> None:
 
         arg_group.add_argument(
-                "--buses",
+                "--intfs",
                 nargs="*", 
-                help="list of buses"
+                help="list of intfs"
                 )
 
         arg_group.add_argument(
@@ -44,6 +44,6 @@ class Exporter(ExporterSubcommandPlugin):
                 nodes=top_node,
                 outdir=options.output,
                 list_files=options.list_files,
-                buses=options.buses,
+                intfs=options.intfs,
             )
 

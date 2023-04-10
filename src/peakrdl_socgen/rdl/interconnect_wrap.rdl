@@ -1,0 +1,14 @@
+addrmap interconnect_wrap #(
+    intf_t INTF[] = '{intf_t'{name:"dummy", ADDR_WIDTH:0, DATA_WIDTH:0, prefix:"dummy", modport:Modport::slave}}
+    ){
+
+    intfs = INTF;
+
+
+    clk intcw_clk;
+    rstn intcw_rstn;
+
+    reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+};
+
+

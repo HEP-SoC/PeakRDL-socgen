@@ -1,3 +1,6 @@
+`ifndef COMMON_RDL
+`define COMMON_RDL
+
 enum SignalType {
     output   = 0;
     input    = 1;
@@ -25,11 +28,6 @@ property subsystem {
 };
 
 property interconnect {
-    type = boolean;
-    component = addrmap;
-};
-
-property bus {
     type = boolean;
     component = addrmap;
 };
@@ -69,13 +67,49 @@ signal rstn {
     signal_type = SignalType::rst;
     };
 
-struct base_bus{
+property intf {
+    type = boolean;
+    component = addrmap;
+};
+
+property n_array {
+    type = longint unsigned;
+    component = addrmap;
+};
+
+enum Modport {
+    slave   = 0;
+    master  = 1;
+};
+
+struct base_intf{
     string name;
     longint unsigned ADDR_WIDTH;
     longint unsigned DATA_WIDTH;
 };
-
-property bus_inst{
-    component = addrmap;
-    type = base_bus;
+ 
+struct test_struct{
+    longint unsigned TEST_NUM;
 };
+
+
+struct intf_t : base_intf{
+    string prefix;
+    Modport modport;
+};
+
+struct intc_intf_t : intf_t{
+    longint unsigned N;
+};
+
+property intf_inst{
+    component = addrmap;
+    type = base_intf;
+};
+
+property intfs{
+    component = addrmap;
+    type = intf_t[];
+};
+
+`endif

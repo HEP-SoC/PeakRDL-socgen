@@ -12,7 +12,6 @@ import shutil
 import jinja2
 
 from .subsystem import Subsystem, SubsystemListener, getOrigTypeName
-from .bus import create_bus
 
 class SocExporter():
     def __init__(self):
@@ -33,29 +32,19 @@ class SocExporter():
         subsystems = listener.subsystem_nodes
 
         out_files = [os.path.join(outdir, getOrigTypeName(s) + ".v") for s in subsystems] # TODO make sure name is correct
+        out_files += [os.path.join(outdir, getOrigTypeName(s) + "_intc_wrap.v") for s in subsystems] # TODO make sure name is correct
         print(*out_files) # Print files to stdout
 
-    def compile_buses(self,
+    def compile_glue(self,
             b_files : List[str],
             ):
         rdlc = RDLCompiler()
-
-        buses = []
-        try:
-            rdlc.compile_file(self.common_rdl_f)
-            for input_file in b_files:
-                rdlc.compile_file(input_file)
-                try:
-                    root = rdlc.elaborate()
-                    for top in root.children():
-                        buses.append(top)
-                        top = top
-
-                except RDLCompileError:
-                    pass
-        except RDLCompileError:
-            sys.exit(1)
-
+        rdlc.compile_file(self.common_rdl_f)
+        for input_file in b_files:
+            rdlc.compile_file(input_file)
+            root = rdlc.elaborate()
+            for top in root.children():
+                top = top
         return rdlc
 
     def get_top(self,
@@ -75,7 +64,7 @@ class SocExporter():
     def export(self,
             nodes: 'Union[Node, List[Node]]',
             outdir: str, 
-            buses: 'List[str]',
+            intfs: 'List[str]',
             list_files: bool=False,
             **kwargs: 'Dict[str, Any]') -> None:
 
@@ -92,25 +81,37 @@ class SocExporter():
             pass
 
 
-        bus_rdlc = self.compile_buses(buses)
+        rdlc = self.compile_glue(intfs)
 
         walker = RDLWalker(unroll=True)
         listener = SubsystemListener()
         walker.walk(top, listener)
-        subsystems = [Subsystem(x, bus_rdlc) for x in listener.subsystem_nodes]
+        # subsystems = [Subsystem(x, rdlc) for x in listener.subsystem_nodes]
+        subsystems = [Subsystem(x, rdlc) for x in listener.subsystem_nodes]
 
 
         for subsys in subsystems:
             context = {
                     'subsys' : subsys 
                     }
-            text = self.process_template(context, "subsystem.j2", subsys)
+            text = self.process_template(context, "subsystem.j2")
 
-            out_file = os.path.join(outdir, subsys.getName(subsys.root) + ".v")
+            out_file = os.path.join(outdir, subsys.getName() + ".v")
             with open(out_file, 'w') as f:
                 f.write(text)
 
-    def process_template(self, context : dict, template : str, subsys : Subsystem) -> str:
+
+        for subsys in subsystems:
+            context = {
+                    'intcw' : subsys.intc_wrap 
+                    }
+            text = self.process_template(context, "intc_wrap.j2")
+
+            out_file = os.path.join(outdir, subsys.intc_wrap.getOrigTypeName() + ".v")
+            with open(out_file, 'w') as f:
+                f.write(text)
+
+    def process_template(self, context : dict, template : str) -> str:
 
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader('%s/subsystem/' % os.path.dirname(__file__)),
@@ -120,12 +121,6 @@ class SocExporter():
         env.filters.update({
             'zip' : zip,
             'int' : int,
-            'getName' : subsys.getName,
-            'getSlaves' : subsys.getSlaves,
-            'getNumEndpoints' : subsys.getNumEndpoints,
-            'getBusSignals' : subsys.getBusSignals,
-            'getParameters' : subsys.getParameters,
-            'getSignals' : subsys.getSignals,
             })
 
         res = env.get_template(template).render(context)

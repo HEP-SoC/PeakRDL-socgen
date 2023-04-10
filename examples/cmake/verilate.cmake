@@ -1,9 +1,10 @@
 set(__VERILATE_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 function(verilator TARGET LIB)
-    set(OPTIONS "EXCLUDE_FROM_ALL")
-    set(ONE_PARAM_ARGS "TOP_MODULE")
-    set(MULTI_PARAM_ARGS "VERILATOR_ARGS")
+    set(OPTIONS "COVERAGE;TRACE;TRACE_FST;SYSTEMC;TRACE_STRUCTS;EXCLUDE_FROM_ALL")
+    set(ONE_PARAM_ARGS "PREFIX;TOP_MODULE;THREADS;TRACE_THREADS;DIRECTORY")
+    set(MULTI_PARAM_ARGS "VERILATOR_ARGS;INCLUDE_DIRS;OPT_SLOW;OPT_FAST;OPT_GLOBAL")
+    message("ARGN ${ARGN}")
 
     get_target_property(BINARY_DIR ${LIB} BINARY_DIR)
 
@@ -24,6 +25,8 @@ function(verilator TARGET LIB)
 
     if(NOT TARGET ${TARGET})
         set(VERILATOR_ARGS VERILATOR_ARGS --main --timing ${VERILATE_VERILATOR_ARGS})
+    else()
+        set(VERILATOR_ARGS VERILATOR_ARGS ${VERILATE_VERILATOR_ARGS})
     endif()
 
     get_target_property(V_SOURCES ${LIB} SOURCES)
@@ -33,10 +36,10 @@ function(verilator TARGET LIB)
 
     verilate(${TARGET} ${VERILATE_EXCLUDE_FROM_ALL}
         SOURCES ${V_FILES}
-        TRACE
         ${VERILATOR_ARGS}
+
+        ${ARGN}
         
-        ${TOP_MODULE_ARG}
         )
 
     add_dependencies(${TARGET}_vlt ${LIB})

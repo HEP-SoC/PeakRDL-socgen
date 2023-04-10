@@ -69,44 +69,45 @@ signal pstrb #(longint unsigned W=4) {
     
 
 
-addrmap apb_bus #(
-    base_bus BUS = base_bus'{name:"apb_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
+addrmap apb_intf #(
+    intf_t INTF = intf_t'{name:"apb_intf", ADDR_WIDTH:32, DATA_WIDTH:32, prefix:"", modport:Modport::slave},
+    longint unsigned N=1
     ){
-    bus;
-    bus_inst = BUS;
-    interconnect_name = "apb_interconnect";
+    intf;
+    intf_inst = INTF;
+    n_array = N;
 
-    penable                         penable;
-    psel                            psel;
-    pready                          pready;
-    pwrite                          pwrite;
-    paddr   #(.W(BUS.ADDR_WIDTH))   paddr;
-    pwdata  #(.W(BUS.DATA_WIDTH))   pwdata;
-    prdata  #(.W(BUS.DATA_WIDTH))   prdata;
-    pstrb   #(.W(BUS.DATA_WIDTH/8)) pstrb;
-    pslverr                         pslverr;
+    penable #(.W(1))                 penable;
+    psel    #(.W(N))                 psel;
+    pready  #(.W(N))                 pready;
+    pwrite  #(.W(1))                 pwrite;
+    paddr   #(.W(INTF.ADDR_WIDTH))   paddr;
+    pwdata  #(.W(INTF.DATA_WIDTH))   pwdata;
+    prdata  #(.W(N*INTF.DATA_WIDTH)) prdata;
+    pstrb   #(.W(INTF.DATA_WIDTH/8)) pstrb;
+    pslverr #(.W(N))                 pslverr;
 
  reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
 
 };
 
-addrmap apb_tmr_bus #(
-    base_bus BUS = base_bus'{name:"apb_tmr_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
-    ){
-    bus;
-    bus_inst = BUS;
-    interconnect_name = "apb_interconnect";
-
-    penable #(.W(3))                  penable;
-    psel    #(.W(3))                  psel;
-    pready  #(.W(3))                  pready;
-    pwrite  #(.W(3))                  pwrite;
-    paddr   #(.W(3*BUS.ADDR_WIDTH))   paddr;
-    pwdata  #(.W(3*BUS.DATA_WIDTH))   pwdata;
-    prdata  #(.W(3*BUS.DATA_WIDTH))   prdata;
-    pstrb   #(.W(3*BUS.DATA_WIDTH/8)) pstrb;
-    pslverr #(.W(3))                  pslverr;
-
- reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
-
-};
+/* addrmap apb_tmr_bus #( */
+/*     intf_t INTF = intf_t'{name:"apb_tmr_bus", ADDR_WIDTH:32, DATA_WIDTH:32, prefix:} */
+/*     ){ */
+/*     bus; */
+/*     bus_inst = INTF; */
+/*     interconnect_name = "apb_interconnect"; */
+/*  */
+/*     penable #(.W(3))                  penable; */
+/*     psel    #(.W(3))                  psel; */
+/*     pready  #(.W(3))                  pready; */
+/*     pwrite  #(.W(3))                  pwrite; */
+/*     paddr   #(.W(3*INTF.ADDR_WIDTH))   paddr; */
+/*     pwdata  #(.W(3*INTF.DATA_WIDTH))   pwdata; */
+/*     prdata  #(.W(3*INTF.DATA_WIDTH))   prdata; */
+/*     pstrb   #(.W(3*INTF.DATA_WIDTH/8)) pstrb; */
+/*     pslverr #(.W(3))                  pslverr; */
+/*  */
+/*  reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy; */
+/*  */
+/* }; */
