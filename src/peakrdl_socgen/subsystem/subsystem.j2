@@ -12,11 +12,17 @@ module {{ subsys.getName() }}(
     {% endfor %}
 {% endfor %}
 );
+
 {% for module in subsys.modules %} {# TODO add interconnects #}
 {% for s in module.signals %}
-{% if s.is_clk or s.is_rst %}
+{% if s.is_clk %}
     wire   {{ module.getSigVerilogName(s) }};
     assign {{ module.getSigVerilogName(s) }} = {{ subsys.getClkOrRst(s).name }}; 
+{% endif %}
+{% if s.is_rst %}
+    {% set rst_sig = subsys.getClkOrRst(s) %}
+    wire   {{ module.getSigVerilogName(s) }};
+    assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh %}!{% endif %}{{ rst_sig.name }}; 
 {% endif %}
 {% endfor %}
 

@@ -32,6 +32,11 @@ property interconnect {
     component = addrmap;
 };
 
+property adapter {
+    type = boolean;
+    component = addrmap;
+};
+
 
 // desc = "Slave select signal, should not be shared between slaves";
 property ss {
@@ -67,6 +72,13 @@ signal rstn {
     signal_type = SignalType::rst;
     };
 
+signal rst { 
+    signalwidth=1; 
+    desc = "Input reset, active high";
+    activehigh = true;
+    signal_type = SignalType::rst;
+    };
+
 property intf {
     type = boolean;
     component = addrmap;
@@ -96,6 +108,10 @@ struct test_struct{
 struct intf_t : base_intf{
     string prefix;
     Modport modport;
+};
+
+struct intf_cap : intf_t{
+    boolean cap;
 };
 
 struct intc_intf_t : intf_t{

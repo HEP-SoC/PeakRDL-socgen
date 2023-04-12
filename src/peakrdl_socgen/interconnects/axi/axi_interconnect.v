@@ -4,7 +4,7 @@
 // {{{
 // Project:	WB2AXIPSP: bus bridges and other odds and ends
 //
-// Purpose:	Create a full crossbar between N_MASTERS AXI sources (masters), and N_SLAVES
+// Purpose:	Create a full crossbar between N_SLAVES AXI sources (masters), and N_MASTERS 
 //		AXI slaves.  Every master can talk to any slave, provided it
 //	isn't already busy.
 // {{{
@@ -28,7 +28,7 @@
 //	interest.  Until that time, in order for a second master to access
 //	a given slave, the first master must receive all of its acknowledgments.
 //
-// Usage:	To use, you must first set N_MASTERS and N_SLAVES to the number of masters
+// Usage:	To use, you must first set N_SLAVES and N_MASTERS to the number of masters
 //	and the number of slaves you wish to connect to.  You then need to
 //	adjust the addresses of the slaves, found SLAVE_ADDR array.  Those
 //	bits that are relevant in SLAVE_ADDR to then also be set in SLAVE_MASK.
@@ -107,12 +107,12 @@ module	axi_interconnect #(
 		parameter integer ADDR_WIDTH = 32,
 		parameter integer C_AXI_ID_WIDTH = 2,
 		//
-		// N_MASTERS is the number of masters driving the incoming slave chnls
-		parameter	N_MASTERS = 4,
+		// N_SLAVES is the number of masters driving the incoming slave chnls
+		parameter	N_SLAVES = 4,
 		//
-		// N_SLAVES is the number of slaves connected to the crossbar, driven
+		// N_MASTERS is the number of slaves connected to the crossbar, driven
 		// by the master channels output from this IP.
-		parameter	N_SLAVES = 8,
+		parameter	N_MASTERS = 8,
 		//
 		// SLAVE_ADDR is an array of addresses, describing each of
 		// {{{
@@ -130,8 +130,8 @@ module	axi_interconnect #(
 		//
 		// NOTE: This is only a nominal address set.  I expect that
 		// any design using the crossbar will need to adjust both
-		// SLAVE_ADDR and SLAVE_MASK, if not also N_MASTERS and N_SLAVES.
-		parameter	[N_SLAVES*ADDR_WIDTH-1:0]	SLAVE_ADDR = {
+		// SLAVE_ADDR and SLAVE_MASK, if not also N_SLAVES and N_MASTERS.
+		parameter	[N_MASTERS*ADDR_WIDTH-1:0]	SLAVE_ADDR = {
 			3'b111,  {(ADDR_WIDTH-3){1'b0}},
 			3'b110,  {(ADDR_WIDTH-3){1'b0}},
 			3'b101,  {(ADDR_WIDTH-3){1'b0}},
@@ -150,7 +150,7 @@ module	axi_interconnect #(
 		//
 		// NOTE: This value should be overridden by any implementation.
 		// Verilator lint_off WIDTH
-		parameter	[N_SLAVES*ADDR_WIDTH-1:0]	SLAVE_MASK = {
+		parameter	[N_MASTERS*ADDR_WIDTH-1:0]	SLAVE_MASK = {
 			3'b111,  {(ADDR_WIDTH-3){1'b0}},
 			3'b111,  {(ADDR_WIDTH-3){1'b0}},
 			3'b111,  {(ADDR_WIDTH-3){1'b0}},
@@ -201,97 +201,97 @@ module	axi_interconnect #(
 		input	wire	S_AXI_ARESETN,
 		// Write slave channels from the controlling AXI masters
 		// {{{
-		input	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		slv_axi_awid,
-		input	wire	[N_MASTERS*ADDR_WIDTH-1:0]	slv_axi_awaddr,
-		input	wire	[N_MASTERS*8-1:0]			slv_axi_awlen,
-		input	wire	[N_MASTERS*3-1:0]			slv_axi_awsize,
-		input	wire	[N_MASTERS*2-1:0]			slv_axi_awburst,
-		input	wire	[N_MASTERS-1:0]			slv_axi_awlock,
-		input	wire	[N_MASTERS*4-1:0]			slv_axi_awcache,
-		input	wire	[N_MASTERS*3-1:0]			slv_axi_awprot,
-		input	wire	[N_MASTERS*4-1:0]			slv_axi_awqos,
-		input	wire	[N_MASTERS-1:0]			slv_axi_awvalid,
-		output	wire	[N_MASTERS-1:0]			slv_axi_awready,
+		input	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]		S_AXI_AWID,
+		input	wire	[N_SLAVES*ADDR_WIDTH-1:0]	S_AXI_AWADDR,
+		input	wire	[N_SLAVES*8-1:0]			S_AXI_AWLEN,
+		input	wire	[N_SLAVES*3-1:0]			S_AXI_AWSIZE,
+		input	wire	[N_SLAVES*2-1:0]			S_AXI_AWBURST,
+		input	wire	[N_SLAVES-1:0]			    S_AXI_AWLOCK,
+		input	wire	[N_SLAVES*4-1:0]			S_AXI_AWCACHE,
+		input	wire	[N_SLAVES*3-1:0]			S_AXI_AWPROT,
+		input	wire	[N_SLAVES*4-1:0]			S_AXI_AWQOS,
+		input	wire	[N_SLAVES-1:0]			    S_AXI_AWVALID,
+		output	wire	[N_SLAVES-1:0]			    S_AXI_AWREADY,
 		//
-		input	wire	[N_MASTERS*DATA_WIDTH-1:0]	slv_axi_wdata,
-		input	wire	[N_MASTERS*DATA_WIDTH/8-1:0]	slv_axi_wstrb,
-		input	wire	[N_MASTERS-1:0]			slv_axi_wlast,
-		input	wire	[N_MASTERS-1:0]			slv_axi_wvalid,
-		output	wire	[N_MASTERS-1:0]			slv_axi_wready,
+		input	wire	[N_SLAVES*DATA_WIDTH-1:0]  	S_AXI_WDATA,
+		input	wire	[N_SLAVES*DATA_WIDTH/8-1:0]	S_AXI_WSTRB,
+		input	wire	[N_SLAVES-1:0]			        S_AXI_WLAST,
+		input	wire	[N_SLAVES-1:0]			        S_AXI_WVALID,
+		output	wire	[N_SLAVES-1:0]			        S_AXI_WREADY,
 		//
-		output	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		slv_axi_bid,
-		output	wire	[N_MASTERS*2-1:0]			slv_axi_bresp,
-		output	wire	[N_MASTERS-1:0]			slv_axi_bvalid,
-		input	wire	[N_MASTERS-1:0]			slv_axi_bready,
+		output	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]	S_AXI_BID,
+		output	wire	[N_SLAVES*2-1:0]			    S_AXI_BRESP,
+		output	wire	[N_SLAVES-1:0]			        S_AXI_BVALID,
+		input	wire	[N_SLAVES-1:0]			        S_AXI_BREADY,
 		// }}}
 		// Read slave channels from the controlling AXI masters
 		// {{{
-		input	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		slv_axi_arid,
-		input	wire	[N_MASTERS*ADDR_WIDTH-1:0]	slv_axi_araddr,
-		input	wire	[N_MASTERS*8-1:0]			slv_axi_arlen,
-		input	wire	[N_MASTERS*3-1:0]			slv_axi_arsize,
-		input	wire	[N_MASTERS*2-1:0]			slv_axi_arburst,
-		input	wire	[N_MASTERS-1:0]			slv_axi_arlock,
-		input	wire	[N_MASTERS*4-1:0]			slv_axi_arcache,
-		input	wire	[N_MASTERS*3-1:0]			slv_axi_arprot,
-		input	wire	[N_MASTERS*4-1:0]			slv_axi_arqos,
-		input	wire	[N_MASTERS-1:0]			slv_axi_arvalid,
-		output	wire	[N_MASTERS-1:0]			slv_axi_arready,
+		input	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]		S_AXI_ARID,
+		input	wire	[N_SLAVES*ADDR_WIDTH-1:0]	S_AXI_ARADDR,
+		input	wire	[N_SLAVES*8-1:0]			S_AXI_ARLEN,
+		input	wire	[N_SLAVES*3-1:0]			S_AXI_ARSIZE,
+		input	wire	[N_SLAVES*2-1:0]			S_AXI_ARBURST,
+		input	wire	[N_SLAVES-1:0]			S_AXI_ARLOCK,
+		input	wire	[N_SLAVES*4-1:0]			S_AXI_ARCACHE,
+		input	wire	[N_SLAVES*3-1:0]			S_AXI_ARPROT,
+		input	wire	[N_SLAVES*4-1:0]			S_AXI_ARQOS,
+		input	wire	[N_SLAVES-1:0]			S_AXI_ARVALID,
+		output	wire	[N_SLAVES-1:0]			S_AXI_ARREADY,
 		//
-		output	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		slv_axi_rid,
-		output	wire	[N_MASTERS*DATA_WIDTH-1:0]	slv_axi_rdata,
-		output	wire	[N_MASTERS*2-1:0]			slv_axi_rresp,
-		output	wire	[N_MASTERS-1:0]			slv_axi_rlast,
-		output	wire	[N_MASTERS-1:0]			slv_axi_rvalid,
-		input	wire	[N_MASTERS-1:0]			slv_axi_rready,
+		output	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]		S_AXI_RID,
+		output	wire	[N_SLAVES*DATA_WIDTH-1:0]	S_AXI_RDATA,
+		output	wire	[N_SLAVES*2-1:0]			S_AXI_RRESP,
+		output	wire	[N_SLAVES-1:0]			S_AXI_RLAST,
+		output	wire	[N_SLAVES-1:0]			S_AXI_RVALID,
+		input	wire	[N_SLAVES-1:0]			S_AXI_RREADY,
 		// }}}
 		// Write channel master outputs to the connected AXI slaves
 		// {{{
-		output	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]		mst_axi_awid,
-		output	wire	[N_SLAVES*ADDR_WIDTH-1:0]	mst_axi_awaddr,
-		output	wire	[N_SLAVES*8-1:0]			mst_axi_awlen,
-		output	wire	[N_SLAVES*3-1:0]			mst_axi_awsize,
-		output	wire	[N_SLAVES*2-1:0]			mst_axi_awburst,
-		output	wire	[N_SLAVES-1:0]			mst_axi_awlock,
-		output	wire	[N_SLAVES*4-1:0]			mst_axi_awcache,
-		output	wire	[N_SLAVES*3-1:0]			mst_axi_awprot,
-		output	wire	[N_SLAVES*4-1:0]			mst_axi_awqos,
-		output	wire	[N_SLAVES-1:0]			mst_axi_awvalid,
-		input	wire	[N_SLAVES-1:0]			mst_axi_awready,
+		output	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		M_AXI_AWID,
+		output	wire	[N_MASTERS*ADDR_WIDTH-1:0]	M_AXI_AWADDR,
+		output	wire	[N_MASTERS*8-1:0]			M_AXI_AWLEN,
+		output	wire	[N_MASTERS*3-1:0]			M_AXI_AWSIZE,
+		output	wire	[N_MASTERS*2-1:0]			M_AXI_AWBURST,
+		output	wire	[N_MASTERS-1:0]			M_AXI_AWLOCK,
+		output	wire	[N_MASTERS*4-1:0]			M_AXI_AWCACHE,
+		output	wire	[N_MASTERS*3-1:0]			M_AXI_AWPROT,
+		output	wire	[N_MASTERS*4-1:0]			M_AXI_AWQOS,
+		output	wire	[N_MASTERS-1:0]			M_AXI_AWVALID,
+		input	wire	[N_MASTERS-1:0]			M_AXI_AWREADY,
 		//
 		//
-		output	wire	[N_SLAVES*DATA_WIDTH-1:0]	mst_axi_wdata,
-		output	wire	[N_SLAVES*DATA_WIDTH/8-1:0]	mst_axi_wstrb,
-		output	wire	[N_SLAVES-1:0]			mst_axi_wlast,
-		output	wire	[N_SLAVES-1:0]			mst_axi_wvalid,
-		input	wire	[N_SLAVES-1:0]			mst_axi_wready,
+		output	wire	[N_MASTERS*DATA_WIDTH-1:0]	M_AXI_WDATA,
+		output	wire	[N_MASTERS*DATA_WIDTH/8-1:0]	M_AXI_WSTRB,
+		output	wire	[N_MASTERS-1:0]			M_AXI_WLAST,
+		output	wire	[N_MASTERS-1:0]			M_AXI_WVALID,
+		input	wire	[N_MASTERS-1:0]			M_AXI_WREADY,
 		//
-		input	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]		mst_axi_bid,
-		input	wire	[N_SLAVES*2-1:0]			mst_axi_bresp,
-		input	wire	[N_SLAVES-1:0]			mst_axi_bvalid,
-		output	wire	[N_SLAVES-1:0]			mst_axi_bready,
+		input	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		M_AXI_BID,
+		input	wire	[N_MASTERS*2-1:0]			M_AXI_BRESP,
+		input	wire	[N_MASTERS-1:0]			M_AXI_BVALID,
+		output	wire	[N_MASTERS-1:0]			M_AXI_BREADY,
 		// }}}
 		// Read channel master outputs to the connected AXI slaves
 		// {{{
-		output	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]		mst_axi_arid,
-		output	wire	[N_SLAVES*ADDR_WIDTH-1:0]	mst_axi_araddr,
-		output	wire	[N_SLAVES*8-1:0]			mst_axi_arlen,
-		output	wire	[N_SLAVES*3-1:0]			mst_axi_arsize,
-		output	wire	[N_SLAVES*2-1:0]			mst_axi_arburst,
-		output	wire	[N_SLAVES-1:0]			mst_axi_arlock,
-		output	wire	[N_SLAVES*4-1:0]			mst_axi_arcache,
-		output	wire	[N_SLAVES*4-1:0]			mst_axi_arqos,
-		output	wire	[N_SLAVES*3-1:0]			mst_axi_arprot,
-		output	wire	[N_SLAVES-1:0]			mst_axi_arvalid,
-		input	wire	[N_SLAVES-1:0]			mst_axi_arready,
+		output	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		M_AXI_ARID,
+		output	wire	[N_MASTERS*ADDR_WIDTH-1:0]	M_AXI_ARADDR,
+		output	wire	[N_MASTERS*8-1:0]			M_AXI_ARLEN,
+		output	wire	[N_MASTERS*3-1:0]			M_AXI_ARSIZE,
+		output	wire	[N_MASTERS*2-1:0]			M_AXI_ARBURST,
+		output	wire	[N_MASTERS-1:0]			M_AXI_ARLOCK,
+		output	wire	[N_MASTERS*4-1:0]			M_AXI_ARCACHE,
+		output	wire	[N_MASTERS*4-1:0]			M_AXI_ARQOS,
+		output	wire	[N_MASTERS*3-1:0]			M_AXI_ARPROT,
+		output	wire	[N_MASTERS-1:0]			M_AXI_ARVALID,
+		input	wire	[N_MASTERS-1:0]			M_AXI_ARREADY,
 		//
 		//
-		input	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]		mst_axi_rid,
-		input	wire	[N_SLAVES*DATA_WIDTH-1:0]	mst_axi_rdata,
-		input	wire	[N_SLAVES*2-1:0]			mst_axi_rresp,
-		input	wire	[N_SLAVES-1:0]			mst_axi_rlast,
-		input	wire	[N_SLAVES-1:0]			mst_axi_rvalid,
-		output	wire	[N_SLAVES-1:0]			mst_axi_rready
+		input	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		M_AXI_RID,
+		input	wire	[N_MASTERS*DATA_WIDTH-1:0]	M_AXI_RDATA,
+		input	wire	[N_MASTERS*2-1:0]			M_AXI_RRESP,
+		input	wire	[N_MASTERS-1:0]			M_AXI_RLAST,
+		input	wire	[N_MASTERS-1:0]			M_AXI_RVALID,
+		output	wire	[N_MASTERS-1:0]			M_AXI_RREADY
 		// }}}
 		// }}}
 	);
@@ -306,15 +306,15 @@ module	axi_interconnect #(
 	// to keep an udle channel open.
 	localparam	LGLINGER = (OPT_LINGER>1) ? $clog2(OPT_LINGER+1) : 1;
 	//
-	localparam	LGNM = (N_MASTERS>1) ? $clog2(N_MASTERS) : 1;
-	localparam	LGNS = (N_SLAVES>1) ? $clog2(N_SLAVES+1) : 1;
+	localparam	LGNM = (N_SLAVES>1) ? $clog2(N_SLAVES) : 1;
+	localparam	LGNS = (N_MASTERS>1) ? $clog2(N_MASTERS+1) : 1;
 	//
 	// In order to use indexes, and hence fully balanced mux trees, it helps
 	// to make certain that we have a power of two based lookup.  NMFULL
 	// is the number of masters in this lookup, with potentially some
 	// unused extra ones.  NSFULL is defined similarly.
-	localparam	NMFULL = (N_MASTERS>1) ? (1<<LGNM) : 1;
-	localparam	NSFULL = (N_SLAVES>1) ? (1<<LGNS) : 2;
+	localparam	NMFULL = (N_SLAVES>1) ? (1<<LGNM) : 1;
+	localparam	NSFULL = (N_MASTERS>1) ? (1<<LGNS) : 2;
 	//
 	localparam [1:0] INTERCONNECT_ERROR = 2'b11;
 	//
@@ -346,38 +346,38 @@ module	axi_interconnect #(
 	genvar	N,M;
 	integer	iN, iM;
 
-	reg	[NSFULL-1:0]	wrequest		[0:N_MASTERS-1];
-	reg	[NSFULL-1:0]	rrequest		[0:N_MASTERS-1];
-	reg	[NSFULL-1:0]	wrequested		[0:N_MASTERS];
-	reg	[NSFULL-1:0]	rrequested		[0:N_MASTERS];
-	reg	[N_SLAVES:0]		wgrant			[0:N_MASTERS-1];
-	reg	[N_SLAVES:0]		rgrant			[0:N_MASTERS-1];
-	reg	[N_MASTERS-1:0]	mwgrant;
-	reg	[N_MASTERS-1:0]	mrgrant;
-	reg	[N_SLAVES-1:0]	swgrant;
-	reg	[N_SLAVES-1:0]	srgrant;
+	reg	[NSFULL-1:0]	wrequest		[0:N_SLAVES-1];
+	reg	[NSFULL-1:0]	rrequest		[0:N_SLAVES-1];
+	reg	[NSFULL-1:0]	wrequested		[0:N_SLAVES];
+	reg	[NSFULL-1:0]	rrequested		[0:N_SLAVES];
+	reg	[N_MASTERS:0]		wgrant			[0:N_SLAVES-1];
+	reg	[N_MASTERS:0]		rgrant			[0:N_SLAVES-1];
+	reg	[N_SLAVES-1:0]	mwgrant;
+	reg	[N_SLAVES-1:0]	mrgrant;
+	reg	[N_MASTERS-1:0]	swgrant;
+	reg	[N_MASTERS-1:0]	srgrant;
 
 	// verilator lint_off UNUSED
-	wire	[LGMAXBURST-1:0]	w_mawpending	[0:N_MASTERS-1];
-	wire	[LGMAXBURST-1:0]	wlasts_pending	[0:N_MASTERS-1];
-	wire	[LGMAXBURST-1:0]	w_mrpending	[0:N_MASTERS-1];
+	wire	[LGMAXBURST-1:0]	w_mawpending	[0:N_SLAVES-1];
+	wire	[LGMAXBURST-1:0]	wlasts_pending	[0:N_SLAVES-1];
+	wire	[LGMAXBURST-1:0]	w_mrpending	[0:N_SLAVES-1];
 	// verilator lint_on  UNUSED
-	reg	[N_MASTERS-1:0]		mwfull;
-	reg	[N_MASTERS-1:0]		mrfull;
-	reg	[N_MASTERS-1:0]		mwempty;
-	reg	[N_MASTERS-1:0]		mrempty;
+	reg	[N_SLAVES-1:0]		mwfull;
+	reg	[N_SLAVES-1:0]		mrfull;
+	reg	[N_SLAVES-1:0]		mwempty;
+	reg	[N_SLAVES-1:0]		mrempty;
 	//
 	wire	[LGNS-1:0]		mwindex	[0:NMFULL-1];
 	wire	[LGNS-1:0]		mrindex	[0:NMFULL-1];
 	wire	[LGNM-1:0]		swindex	[0:NSFULL-1];
 	wire	[LGNM-1:0]		srindex	[0:NSFULL-1];
 
-	wire	[N_MASTERS-1:0]		wdata_expected;
+	wire	[N_SLAVES-1:0]		wdata_expected;
 
 	// The shadow buffers
 	wire	[NMFULL-1:0]	m_awvalid, m_arvalid;
 	wire	[NMFULL-1:0]	m_wvalid;
-	wire	[N_MASTERS-1:0]	dcd_awvalid, dcd_arvalid;
+	wire	[N_SLAVES-1:0]	dcd_awvalid, dcd_arvalid;
 
 	wire	[C_AXI_ID_WIDTH-1:0]		m_awid		[0:NMFULL-1];
 	wire	[ADDR_WIDTH-1:0]		m_awaddr	[0:NMFULL-1];
@@ -404,35 +404,35 @@ module	axi_interconnect #(
 	wire	[3:0]				m_arqos		[0:NMFULL-1];
 	//
 	//
-	reg	[N_MASTERS-1:0]			berr_valid;
-	reg	[IW-1:0]			berr_id		[0:N_MASTERS-1];
+	reg	[N_SLAVES-1:0]			berr_valid;
+	reg	[IW-1:0]			berr_id		[0:N_SLAVES-1];
 	//
-	reg	[N_MASTERS-1:0]			rerr_none;
-	reg	[N_MASTERS-1:0]			rerr_last;
-	reg	[8:0]				rerr_outstanding [0:N_MASTERS-1];
-	reg	[IW-1:0]			rerr_id		 [0:N_MASTERS-1];
+	reg	[N_SLAVES-1:0]			rerr_none;
+	reg	[N_SLAVES-1:0]			rerr_last;
+	reg	[8:0]				rerr_outstanding [0:N_SLAVES-1];
+	reg	[IW-1:0]			rerr_id		 [0:N_SLAVES-1];
 
-	wire	[N_MASTERS-1:0]	skd_awvalid, skd_awstall;
-	wire	[N_MASTERS-1:0]	skd_arvalid, skd_arstall;
-	wire	[IW-1:0]	skd_awid			[0:N_MASTERS-1];
-	wire	[AW-1:0]	skd_awaddr			[0:N_MASTERS-1];
-	wire	[8-1:0]		skd_awlen			[0:N_MASTERS-1];
-	wire	[3-1:0]		skd_awsize			[0:N_MASTERS-1];
-	wire	[2-1:0]		skd_awburst			[0:N_MASTERS-1];
-	wire	[N_MASTERS-1:0]	skd_awlock;
-	wire	[4-1:0]		skd_awcache			[0:N_MASTERS-1];
-	wire	[3-1:0]		skd_awprot			[0:N_MASTERS-1];
-	wire	[4-1:0]		skd_awqos			[0:N_MASTERS-1];
+	wire	[N_SLAVES-1:0]	skd_awvalid, skd_awstall;
+	wire	[N_SLAVES-1:0]	skd_arvalid, skd_arstall;
+	wire	[IW-1:0]	skd_awid			[0:N_SLAVES-1];
+	wire	[AW-1:0]	skd_awaddr			[0:N_SLAVES-1];
+	wire	[8-1:0]		skd_awlen			[0:N_SLAVES-1];
+	wire	[3-1:0]		skd_awsize			[0:N_SLAVES-1];
+	wire	[2-1:0]		skd_awburst			[0:N_SLAVES-1];
+	wire	[N_SLAVES-1:0]	skd_awlock;
+	wire	[4-1:0]		skd_awcache			[0:N_SLAVES-1];
+	wire	[3-1:0]		skd_awprot			[0:N_SLAVES-1];
+	wire	[4-1:0]		skd_awqos			[0:N_SLAVES-1];
 	//
-	wire	[IW-1:0]	skd_arid			[0:N_MASTERS-1];
-	wire	[AW-1:0]	skd_araddr			[0:N_MASTERS-1];
-	wire	[8-1:0]		skd_arlen			[0:N_MASTERS-1];
-	wire	[3-1:0]		skd_arsize			[0:N_MASTERS-1];
-	wire	[2-1:0]		skd_arburst			[0:N_MASTERS-1];
-	wire	[N_MASTERS-1:0]	skd_arlock;
-	wire	[4-1:0]		skd_arcache			[0:N_MASTERS-1];
-	wire	[3-1:0]		skd_arprot			[0:N_MASTERS-1];
-	wire	[4-1:0]		skd_arqos			[0:N_MASTERS-1];
+	wire	[IW-1:0]	skd_arid			[0:N_SLAVES-1];
+	wire	[AW-1:0]	skd_araddr			[0:N_SLAVES-1];
+	wire	[8-1:0]		skd_arlen			[0:N_SLAVES-1];
+	wire	[3-1:0]		skd_arsize			[0:N_SLAVES-1];
+	wire	[2-1:0]		skd_arburst			[0:N_SLAVES-1];
+	wire	[N_SLAVES-1:0]	skd_arlock;
+	wire	[4-1:0]		skd_arcache			[0:N_SLAVES-1];
+	wire	[3-1:0]		skd_arprot			[0:N_SLAVES-1];
+	wire	[4-1:0]		skd_arqos			[0:N_SLAVES-1];
 
 	// Verilator lint_off UNUSED
 	reg	[NSFULL-1:0]	m_axi_awvalid;
@@ -464,14 +464,14 @@ module	axi_interconnect #(
 	reg	[NSFULL-1:0]	m_axi_rlast;
 	reg	[2-1:0]		m_axi_rresp	[0:NSFULL-1];
 
-	reg	[N_MASTERS-1:0]	slave_awaccepts;
-	reg	[N_MASTERS-1:0]	slave_waccepts;
-	reg	[N_MASTERS-1:0]	slave_raccepts;
+	reg	[N_SLAVES-1:0]	slave_awaccepts;
+	reg	[N_SLAVES-1:0]	slave_waccepts;
+	reg	[N_SLAVES-1:0]	slave_raccepts;
 
-	reg	[N_MASTERS-1:0]	bskd_valid;
-	reg	[N_MASTERS-1:0]	rskd_valid, rskd_rlast;
-	wire	[N_MASTERS-1:0]	bskd_ready;
-	wire	[N_MASTERS-1:0]	rskd_ready;
+	reg	[N_SLAVES-1:0]	bskd_valid;
+	reg	[N_SLAVES-1:0]	rskd_valid, rskd_rlast;
+	wire	[N_SLAVES-1:0]	bskd_ready;
+	wire	[N_SLAVES-1:0]	rskd_ready;
 
 	wire	[NMFULL-1:0]	write_qos_lockout,
 				read_qos_lockout;
@@ -490,27 +490,27 @@ module	axi_interconnect #(
 		m_axi_bvalid = 0;
 		m_axi_bready = -1;
 
-		m_axi_awvalid[N_SLAVES-1:0] = mst_axi_awvalid;
-		m_axi_awready[N_SLAVES-1:0] = mst_axi_awready;
-		m_axi_wvalid[N_SLAVES-1:0]  = mst_axi_wvalid;
-		m_axi_wready[N_SLAVES-1:0]  = mst_axi_wready;
-		m_axi_bvalid[N_SLAVES-1:0]  = mst_axi_bvalid;
-		m_axi_bready[N_SLAVES-1:0]  = mst_axi_bready;
+		m_axi_awvalid[N_MASTERS-1:0] = M_AXI_AWVALID;
+		m_axi_awready[N_MASTERS-1:0] = M_AXI_AWREADY;
+		m_axi_wvalid[N_MASTERS-1:0]  = M_AXI_WVALID;
+		m_axi_wready[N_MASTERS-1:0]  = M_AXI_WREADY;
+		m_axi_bvalid[N_MASTERS-1:0]  = M_AXI_BVALID;
+		m_axi_bready[N_MASTERS-1:0]  = M_AXI_BREADY;
 
-		for(iM=0; iM<N_SLAVES; iM=iM+1)
+		for(iM=0; iM<N_MASTERS; iM=iM+1)
 		begin
-			m_axi_awid[iM]   = mst_axi_awid[   iM*IW +: IW];
-			m_axi_awlen[iM]  = mst_axi_awlen[  iM* 8 +:  8];
+			m_axi_awid[iM]   = M_AXI_AWID[   iM*IW +: IW];
+			m_axi_awlen[iM]  = M_AXI_AWLEN[  iM* 8 +:  8];
 
-			m_axi_bid[iM]   = mst_axi_bid[iM* IW +:  IW];
-			m_axi_bresp[iM] = mst_axi_bresp[iM* 2 +:  2];
+			m_axi_bid[iM]   = M_AXI_BID[iM* IW +:  IW];
+			m_axi_bresp[iM] = M_AXI_BRESP[iM* 2 +:  2];
 
-			m_axi_rid[iM]   = mst_axi_rid[  iM*IW +: IW];
-			m_axi_rdata[iM] = mst_axi_rdata[iM*DW +: DW];
-			m_axi_rresp[iM] = mst_axi_rresp[iM* 2 +:  2];
-			m_axi_rlast[iM] = mst_axi_rlast[iM];
+			m_axi_rid[iM]   = M_AXI_RID[  iM*IW +: IW];
+			m_axi_rdata[iM] = M_AXI_RDATA[iM*DW +: DW];
+			m_axi_rresp[iM] = M_AXI_RRESP[iM* 2 +:  2];
+			m_axi_rlast[iM] = M_AXI_RLAST[iM];
 		end
-		for(iM=N_SLAVES; iM<NSFULL; iM=iM+1)
+		for(iM=N_MASTERS; iM<NSFULL; iM=iM+1)
 		begin
 			m_axi_awid[iM]   = 0;
 			m_axi_awlen[iM]  = 0;
@@ -534,21 +534,21 @@ module	axi_interconnect #(
 		m_axi_arready = 0;
 		m_axi_rvalid = 0;
 		m_axi_rready = 0;
-		for(iM=0; iM<N_SLAVES; iM=iM+1)
+		for(iM=0; iM<N_MASTERS; iM=iM+1)
 		begin
-			m_axi_arlen[iM] = mst_axi_arlen[iM* 8 +:  8];
-			m_axi_arid[iM]  = mst_axi_arid[ iM*IW +: IW];
+			m_axi_arlen[iM] = M_AXI_ARLEN[iM* 8 +:  8];
+			m_axi_arid[iM]  = M_AXI_ARID[ iM*IW +: IW];
 		end
-		for(iM=N_SLAVES; iM<NSFULL; iM=iM+1)
+		for(iM=N_MASTERS; iM<NSFULL; iM=iM+1)
 		begin
 			m_axi_arlen[iM] = 0;
 			m_axi_arid[iM]  = 0;
 		end
 
-		m_axi_arvalid[N_SLAVES-1:0] = mst_axi_arvalid;
-		m_axi_arready[N_SLAVES-1:0] = mst_axi_arready;
-		m_axi_rvalid[N_SLAVES-1:0]  = mst_axi_rvalid;
-		m_axi_rready[N_SLAVES-1:0]  = mst_axi_rready;
+		m_axi_arvalid[N_MASTERS-1:0] = M_AXI_ARVALID;
+		m_axi_arready[N_MASTERS-1:0] = M_AXI_ARREADY;
+		m_axi_rvalid[N_MASTERS-1:0]  = M_AXI_RVALID;
+		m_axi_rready[N_MASTERS-1:0]  = M_AXI_RREADY;
 	end
 	// }}}
 
@@ -567,9 +567,9 @@ module	axi_interconnect #(
 		//
 		// Here we do all of the combinatoric calculations, so the
 		// master only needs to reference one bit of this signal
-		slave_awready[N_SLAVES-1:0] = (~mst_axi_awvalid | mst_axi_awready);
-		slave_wready[N_SLAVES-1:0]  = (~mst_axi_wvalid | mst_axi_wready);
-		slave_arready[N_SLAVES-1:0] = (~mst_axi_arvalid | mst_axi_arready);
+		slave_awready[N_MASTERS-1:0] = (~M_AXI_AWVALID | M_AXI_AWREADY);
+		slave_wready[N_MASTERS-1:0]  = (~M_AXI_WVALID | M_AXI_WREADY);
+		slave_arready[N_MASTERS-1:0] = (~M_AXI_ARVALID | M_AXI_ARREADY);
 	end
 	// }}}
 
@@ -581,10 +581,10 @@ module	axi_interconnect #(
 	//
 	//
 
-	generate for(N=0; N<N_MASTERS; N=N+1)
+	generate for(N=0; N<N_SLAVES; N=N+1)
 	begin : W1_DECODE_WRITE_REQUEST
 	// {{{
-		wire	[N_SLAVES:0]	wdecode;
+		wire	[N_MASTERS:0]	wdecode;
 
 		// awskid, the skidbuffer for the incoming AW* channel
 		// {{{
@@ -596,12 +596,12 @@ module	axi_interconnect #(
 		) awskid(
 			// {{{
 			S_AXI_ACLK, !S_AXI_ARESETN,
-			slv_axi_awvalid[N], slv_axi_awready[N],
-			{ slv_axi_awid[N*IW +: IW], slv_axi_awaddr[N*AW +: AW],
-			  slv_axi_awlen[N*8 +: 8], slv_axi_awsize[N*3 +: 3],
-			  slv_axi_awburst[N*2 +: 2], slv_axi_awlock[N],
-			  slv_axi_awcache[N*4 +: 4], slv_axi_awprot[N*3 +: 3],
-			  slv_axi_awqos[N*4 +: 4] },
+			S_AXI_AWVALID[N], S_AXI_AWREADY[N],
+			{ S_AXI_AWID[N*IW +: IW], S_AXI_AWADDR[N*AW +: AW],
+			  S_AXI_AWLEN[N*8 +: 8], S_AXI_AWSIZE[N*3 +: 3],
+			  S_AXI_AWBURST[N*2 +: 2], S_AXI_AWLOCK[N],
+			  S_AXI_AWCACHE[N*4 +: 4], S_AXI_AWPROT[N*3 +: 3],
+			  S_AXI_AWQOS[N*4 +: 4] },
 			skd_awvalid[N], !skd_awstall[N],
 			{ skd_awid[N], skd_awaddr[N], skd_awlen[N],
 			  skd_awsize[N], skd_awburst[N], skd_awlock[N],
@@ -615,7 +615,7 @@ module	axi_interconnect #(
 		// {{{
 		addrdecode #(
 			// {{{
-			.AW(AW), .DW(IW+8+3+2+1+4+3+4), .NS(N_SLAVES),
+			.AW(AW), .DW(IW+8+3+2+1+4+3+4), .NS(N_MASTERS),
 			.SLAVE_ADDR(SLAVE_ADDR),
 			.SLAVE_MASK(SLAVE_MASK),
 			.OPT_REGISTERED(OPT_BUFFER_DECODER)
@@ -648,9 +648,9 @@ module	axi_interconnect #(
 		) wskid(
 			// {{{
 			S_AXI_ACLK, !S_AXI_ARESETN,
-			slv_axi_wvalid[N], slv_axi_wready[N],
-			{ slv_axi_wdata[N*DW +: DW], slv_axi_wstrb[N*DW/8 +: DW/8],
-			  slv_axi_wlast[N] },
+			S_AXI_WVALID[N], S_AXI_WREADY[N],
+			{ S_AXI_WDATA[N*DW +: DW], S_AXI_WSTRB[N*DW/8 +: DW/8],
+			  S_AXI_WLAST[N] },
 			m_wvalid[N], slave_waccepts[N],
 			{ m_wdata[N], m_wstrb[N], m_wlast[N] }
 			// }}}
@@ -676,7 +676,7 @@ module	axi_interconnect #(
 			// the grant is issued for
 			if (!wrequest[N][mwindex[N]])
 				slave_awaccepts[N] = 1'b0;
-			if (!wgrant[N][N_SLAVES])
+			if (!wgrant[N][N_MASTERS])
 			begin
 				if (!slave_awready[mwindex[N]])
 					slave_awaccepts[N] = 1'b0;
@@ -703,7 +703,7 @@ module	axi_interconnect #(
 				slave_waccepts[N] = 1'b0;
 			if (!wdata_expected[N] && (!OPT_AWW || !slave_awaccepts[N]))
 				slave_waccepts[N] = 1'b0;
-			if (!wgrant[N][N_SLAVES])
+			if (!wgrant[N][N_MASTERS])
 			begin
 				if (!slave_wready[mwindex[N]])
 					slave_waccepts[N] = 1'b0;
@@ -719,14 +719,14 @@ module	axi_interconnect #(
 			r_awvalid = dcd_awvalid[N] && !mwfull[N];
 			wrequest[N]= 0;
 			if (!mwfull[N])
-				wrequest[N][N_SLAVES:0] = wdecode;
+				wrequest[N][N_MASTERS:0] = wdecode;
 		end
 
 		assign	m_awvalid[N] = r_awvalid;
 
 		// QOS handling via write_qos_lockout
 		// {{{
-		if (!OPT_QOS || N_MASTERS == 1)
+		if (!OPT_QOS || N_SLAVES == 1)
 		begin : WRITE_NO_QOS
 
 			// If we aren't using QOS, then never lock any packets
@@ -747,12 +747,12 @@ module	axi_interconnect #(
 			else begin
 				r_write_qos_lockout <= 0;
 
-				for(iN=0; iN<N_MASTERS; iN=iN+1)
+				for(iN=0; iN<N_SLAVES; iN=iN+1)
 				if (iN != N)
 				begin
 					if (m_awvalid[N]
-						&&(|(wrequest[iN][N_SLAVES-1:0]
-							& wdecode[N_SLAVES-1:0]))
+						&&(|(wrequest[iN][N_MASTERS-1:0]
+							& wdecode[N_MASTERS-1:0]))
 						&&(m_awqos[N] < m_awqos[iN]))
 						r_write_qos_lockout <= 1;
 				end
@@ -763,7 +763,7 @@ module	axi_interconnect #(
 		end
 		// }}}
 
-	end for (N=N_MASTERS; N<NMFULL; N=N+1)
+	end for (N=N_SLAVES; N<NMFULL; N=N+1)
 	begin : UNUSED_WSKID_BUFFERS
 	// {{{
 		// The following values are unused.  They need to be defined
@@ -793,11 +793,11 @@ module	axi_interconnect #(
 	end endgenerate
 
 	// Read skid buffers and address decoding, slave_araccepts logic
-	generate for(N=0; N<N_MASTERS; N=N+1)
+	generate for(N=0; N<N_SLAVES; N=N+1)
 	begin : R1_DECODE_READ_REQUEST
 	// {{{
 		reg		r_arvalid;
-		wire	[N_SLAVES:0]	rdecode;
+		wire	[N_MASTERS:0]	rdecode;
 
 		// arskid
 		// {{{
@@ -809,12 +809,12 @@ module	axi_interconnect #(
 		) arskid(
 			// {{{
 			S_AXI_ACLK, !S_AXI_ARESETN,
-			slv_axi_arvalid[N], slv_axi_arready[N],
-			{ slv_axi_arid[N*IW +: IW], slv_axi_araddr[N*AW +: AW],
-			  slv_axi_arlen[N*8 +: 8], slv_axi_arsize[N*3 +: 3],
-			  slv_axi_arburst[N*2 +: 2], slv_axi_arlock[N],
-			  slv_axi_arcache[N*4 +: 4], slv_axi_arprot[N*3 +: 3],
-			  slv_axi_arqos[N*4 +: 4] },
+			S_AXI_ARVALID[N], S_AXI_ARREADY[N],
+			{ S_AXI_ARID[N*IW +: IW], S_AXI_ARADDR[N*AW +: AW],
+			  S_AXI_ARLEN[N*8 +: 8], S_AXI_ARSIZE[N*3 +: 3],
+			  S_AXI_ARBURST[N*2 +: 2], S_AXI_ARLOCK[N],
+			  S_AXI_ARCACHE[N*4 +: 4], S_AXI_ARPROT[N*3 +: 3],
+			  S_AXI_ARQOS[N*4 +: 4] },
 			skd_arvalid[N], !skd_arstall[N],
 			{ skd_arid[N], skd_araddr[N], skd_arlen[N],
 			  skd_arsize[N], skd_arburst[N], skd_arlock[N],
@@ -827,7 +827,7 @@ module	axi_interconnect #(
 		// {{{
 		addrdecode #(
 			// {{{
-			.AW(AW), .DW(IW+8+3+2+1+4+3+4), .NS(N_SLAVES),
+			.AW(AW), .DW(IW+8+3+2+1+4+3+4), .NS(N_MASTERS),
 			.SLAVE_ADDR(SLAVE_ADDR),
 			.SLAVE_MASK(SLAVE_MASK),
 			.OPT_REGISTERED(OPT_BUFFER_DECODER)
@@ -855,7 +855,7 @@ module	axi_interconnect #(
 			r_arvalid = dcd_arvalid[N] && !mrfull[N];
 			rrequest[N] = 0;
 			if (!mrfull[N])
-				rrequest[N][N_SLAVES:0] = rdecode;
+				rrequest[N][N_MASTERS:0] = rdecode;
 		end
 
 		assign	m_arvalid[N] = r_arvalid;
@@ -877,7 +877,7 @@ module	axi_interconnect #(
 			if (!rrequest[N][mrindex[N]])
 				slave_raccepts[N] = 1'b0;
 			// verilator lint_on  WIDTH
-			if (!rgrant[N][N_SLAVES])
+			if (!rgrant[N][N_MASTERS])
 			begin
 				if (!slave_arready[mrindex[N]])
 					slave_raccepts[N] = 1'b0;
@@ -892,7 +892,7 @@ module	axi_interconnect #(
 		// QOS number is requesting a given slave.  It will not
 		// affect existing outstanding packets, but will be used to
 		// prevent further packets from being sent to a given slave.
-		if (!OPT_QOS || N_MASTERS == 1)
+		if (!OPT_QOS || N_SLAVES == 1)
 		begin : READ_NO_QOS
 
 			// If we aren't implementing QOS, then the lockout
@@ -913,13 +913,13 @@ module	axi_interconnect #(
 			else begin
 				r_read_qos_lockout <= 0;
 
-				for(iN=0; iN<N_MASTERS; iN=iN+1)
+				for(iN=0; iN<N_SLAVES; iN=iN+1)
 				if (iN != N)
 				begin
 					if (m_arvalid[iN]
 						&& !slave_raccepts[N]
-						&&(|(rrequest[iN][N_SLAVES-1:0]
-							& rdecode[N_SLAVES-1:0]))
+						&&(|(rrequest[iN][N_MASTERS-1:0]
+							& rdecode[N_MASTERS-1:0]))
 						&&(m_arqos[N] < m_arqos[iN]))
 						r_read_qos_lockout <= 1;
 				end
@@ -930,7 +930,7 @@ module	axi_interconnect #(
 		end
 		// }}}
 
-	end for (N=N_MASTERS; N<NMFULL; N=N+1)
+	end for (N=N_SLAVES; N<NMFULL; N=N+1)
 	begin : UNUSED_RSKID_BUFFERS
 	// {{{
 		assign	m_arvalid[N] = 0;
@@ -963,22 +963,22 @@ module	axi_interconnect #(
 	always @(*)
 	begin : W2_DECONFLICT_WRITE_REQUESTS
 
-		for(iN=0; iN<=N_MASTERS; iN=iN+1)
+		for(iN=0; iN<=N_SLAVES; iN=iN+1)
 			wrequested[iN] = 0;
 
 		// Vivado may complain about too many bits for wrequested.
 		// This is (currrently) expected.  mwindex is used to index
 		// into wrequested, and mwindex has LGNS bits, where LGNS
-		// is $clog2(N_SLAVES+1) rather than $clog2(N_SLAVES).  The extra bits
+		// is $clog2(N_MASTERS+1) rather than $clog2(N_MASTERS).  The extra bits
 		// are defined to be zeros, but the point is they are defined.
 		// Therefore, no matter what mwindex is, it will always
 		// reference something valid.
-		wrequested[N_MASTERS] = 0;
+		wrequested[N_SLAVES] = 0;
 
-		for(iM=0; iM<N_SLAVES; iM=iM+1)
+		for(iM=0; iM<N_MASTERS; iM=iM+1)
 		begin
 			wrequested[0][iM] = 1'b0;
-			for(iN=1; iN<N_MASTERS ; iN=iN+1)
+			for(iN=1; iN<N_SLAVES ; iN=iN+1)
 			begin
 				// Continue to request any channel with
 				// a grant and pending operations
@@ -991,7 +991,7 @@ module	axi_interconnect #(
 				if (wrequested[iN-1][iM])
 					wrequested[iN][iM] = 1;
 			end
-			wrequested[N_MASTERS][iM] = wrequest[N_MASTERS-1][iM] || wrequested[N_MASTERS-1][iM];
+			wrequested[N_SLAVES][iM] = wrequest[N_SLAVES-1][iM] || wrequested[N_SLAVES-1][iM];
 		end
 	end
 	// }}}
@@ -1001,17 +1001,17 @@ module	axi_interconnect #(
 	always @(*)
 	begin : R2_DECONFLICT_READ_REQUESTS
 
-		for(iN=0; iN<N_MASTERS ; iN=iN+1)
+		for(iN=0; iN<N_SLAVES ; iN=iN+1)
 			rrequested[iN] = 0;
 
 		// See the note above for wrequested.  This applies to
 		// rrequested as well.
-		rrequested[N_MASTERS] = 0;
+		rrequested[N_SLAVES] = 0;
 
-		for(iM=0; iM<N_SLAVES; iM=iM+1)
+		for(iM=0; iM<N_MASTERS; iM=iM+1)
 		begin
 			rrequested[0][iM] = 0;
-			for(iN=1; iN<N_MASTERS ; iN=iN+1)
+			for(iN=1; iN<N_SLAVES ; iN=iN+1)
 			begin
 				// Continue to request any channel with
 				// a grant and pending operations
@@ -1024,13 +1024,13 @@ module	axi_interconnect #(
 				if (rrequested[iN-1][iM])
 					rrequested[iN][iM] = 1;
 			end
-			rrequested[N_MASTERS][iM] = rrequest[N_MASTERS-1][iM] || rrequested[N_MASTERS-1][iM];
+			rrequested[N_SLAVES][iM] = rrequest[N_SLAVES-1][iM] || rrequested[N_SLAVES-1][iM];
 		end
 	end
 	// }}}
 
 
-	generate for(N=0; N<N_MASTERS; N=N+1)
+	generate for(N=0; N<N_SLAVES; N=N+1)
 	begin : W3_ARBITRATE_WRITE_REQUESTS
 	// {{{
 		reg			stay_on_channel;
@@ -1054,7 +1054,7 @@ module	axi_interconnect #(
 		// etc.
 		always @(*)
 		begin
-			stay_on_channel = |(wrequest[N][N_SLAVES:0] & wgrant[N]);
+			stay_on_channel = |(wrequest[N][N_MASTERS:0] & wgrant[N]);
 			if (write_qos_lockout[N])
 				stay_on_channel = 0;
 
@@ -1080,17 +1080,17 @@ module	axi_interconnect #(
 			// 2) no one else is using it, and 3) no one earlier
 			// has requested it
 			requested_channel_is_available =
-				|(wrequest[N][N_SLAVES-1:0] & ~swgrant
-						& ~wrequested[N][N_SLAVES-1:0]);
+				|(wrequest[N][N_MASTERS-1:0] & ~swgrant
+						& ~wrequested[N][N_MASTERS-1:0]);
 
 			// Of course, the error pseudo-channel is *always*
 			// available to us.
-			if (wrequest[N][N_SLAVES])
+			if (wrequest[N][N_MASTERS])
 				requested_channel_is_available = 1;
 
 			// Likewise, if we are the only master, then the
 			// channel is always available on any request
-			if (N_MASTERS < 2)
+			if (N_SLAVES < 2)
 				requested_channel_is_available = m_awvalid[N];
 		end
 		// }}}
@@ -1116,7 +1116,7 @@ module	axi_interconnect #(
 			initial	r_linger = 0;
 			initial	linger_counter = 0;
 			always @(posedge S_AXI_ACLK)
-			if (!S_AXI_ARESETN || wgrant[N][N_SLAVES])
+			if (!S_AXI_ARESETN || wgrant[N][N_MASTERS])
 			begin
 				r_linger <= 0;
 				linger_counter <= 0;
@@ -1149,7 +1149,7 @@ module	axi_interconnect #(
 		begin
 			leave_channel = 0;
 			if (!m_awvalid[N]
-				&& (!linger || wrequested[N_MASTERS][mwindex[N]]))
+				&& (!linger || wrequested[N_SLAVES][mwindex[N]]))
 				// Leave the channel after OPT_LINGER counts
 				// of the channel being idle, or when someone
 				// else asks for the channel
@@ -1182,7 +1182,7 @@ module	axi_interconnect #(
 			begin
 				// Switch to a new channel
 				mwgrant[N] <= 1'b1;
-				wgrant[N]  <= wrequest[N][N_SLAVES:0];
+				wgrant[N]  <= wrequest[N][N_MASTERS:0];
 			end else if (leave_channel)
 			begin
 				// Revoke the given grant
@@ -1197,7 +1197,7 @@ module	axi_interconnect #(
 		always @(wrequest[N])
 		begin
 			requested_index = 0;
-			for(iM=0; iM<=N_SLAVES; iM=iM+1)
+			for(iM=0; iM<=N_MASTERS; iM=iM+1)
 			if (wrequest[N][iM])
 				requested_index= requested_index | iM[LGNS-1:0];
 		end
@@ -1211,14 +1211,14 @@ module	axi_interconnect #(
 		assign	mwindex[N] = r_mwindex;
 		// }}}
 
-	end for (N=N_MASTERS; N<NMFULL; N=N+1)
+	end for (N=N_SLAVES; N<NMFULL; N=N+1)
 	begin
 
 		assign	mwindex[N] = 0;
 	// }}}
 	end endgenerate
 
-	generate for(N=0; N<N_MASTERS; N=N+1)
+	generate for(N=0; N<N_SLAVES; N=N+1)
 	begin : R3_ARBITRATE_READ_REQUESTS
 	// {{{
 		reg			stay_on_channel;
@@ -1243,7 +1243,7 @@ module	axi_interconnect #(
 		// etc.
 		always @(*)
 		begin
-			stay_on_channel = |(rrequest[N][N_SLAVES:0] & rgrant[N]);
+			stay_on_channel = |(rrequest[N][N_MASTERS:0] & rgrant[N]);
 			if (read_qos_lockout[N])
 				stay_on_channel = 0;
 
@@ -1256,7 +1256,7 @@ module	axi_interconnect #(
 			// if we have a grant to the internal slave-error
 			// channel, then we cannot issue a grant to any other
 			// while this grant is active
-			if (rgrant[N][N_SLAVES] && (!rerr_none[N] || rskd_valid[N]))
+			if (rgrant[N][N_MASTERS] && (!rerr_none[N] || rskd_valid[N]))
 				stay_on_channel = 1;
 		end
 		// }}}
@@ -1269,17 +1269,17 @@ module	axi_interconnect #(
 			// 2) no one else is using it, and 3) no one earlier
 			// has requested it
 			requested_channel_is_available =
-				|(rrequest[N][N_SLAVES-1:0] & ~srgrant
-						& ~rrequested[N][N_SLAVES-1:0]);
+				|(rrequest[N][N_MASTERS-1:0] & ~srgrant
+						& ~rrequested[N][N_MASTERS-1:0]);
 
 			// Of course, the error pseudo-channel is *always*
 			// available to us.
-			if (rrequest[N][N_SLAVES])
+			if (rrequest[N][N_MASTERS])
 				requested_channel_is_available = 1;
 
 			// Likewise, if we are the only master, then the
 			// channel is always available on any request
-			if (N_MASTERS < 2)
+			if (N_SLAVES < 2)
 				requested_channel_is_available = m_arvalid[N];
 		end
 		// }}}
@@ -1305,7 +1305,7 @@ module	axi_interconnect #(
 			initial	linger = 0;
 			initial	linger_counter = 0;
 			always @(posedge S_AXI_ACLK)
-			if (!S_AXI_ARESETN || rgrant[N][N_SLAVES])
+			if (!S_AXI_ARESETN || rgrant[N][N_MASTERS])
 			begin
 				linger <= 0;
 				linger_counter <= 0;
@@ -1333,7 +1333,7 @@ module	axi_interconnect #(
 		begin
 			leave_channel = 0;
 			if (!m_arvalid[N]
-				&& (!linger || rrequested[N_MASTERS][mrindex[N]]))
+				&& (!linger || rrequested[N_SLAVES][mrindex[N]]))
 				// Leave the channel after OPT_LINGER counts
 				// of the channel being idle, or when someone
 				// else asks for the channel
@@ -1363,7 +1363,7 @@ module	axi_interconnect #(
 			begin
 				// Switching channels
 				mrgrant[N] <= 1'b1;
-				rgrant[N] <= rrequest[N][N_SLAVES:0];
+				rgrant[N] <= rrequest[N][N_MASTERS:0];
 			end else if (leave_channel)
 			begin
 				mrgrant[N] <= 1'b0;
@@ -1377,7 +1377,7 @@ module	axi_interconnect #(
 		always @(rrequest[N])
 		begin
 			requested_index = 0;
-			for(iM=0; iM<=N_SLAVES; iM=iM+1)
+			for(iM=0; iM<=N_MASTERS; iM=iM+1)
 			if (rrequest[N][iM])
 				requested_index = requested_index|iM[LGNS-1:0];
 		end
@@ -1390,7 +1390,7 @@ module	axi_interconnect #(
 		assign	mrindex[N] = r_mrindex;
 		// }}}
 
-	end for (N=N_MASTERS; N<NMFULL; N=N+1)
+	end for (N=N_SLAVES; N<NMFULL; N=N+1)
 	begin
 
 		assign	mrindex[N] = 0;
@@ -1398,13 +1398,13 @@ module	axi_interconnect #(
 	end endgenerate
 
 	// Calculate swindex (registered)
-	generate for (M=0; M<N_SLAVES; M=M+1)
+	generate for (M=0; M<N_MASTERS; M=M+1)
 	begin : W4_SLAVE_WRITE_INDEX
 	// {{{
 		// swindex is a per slave index, containing the index of the
 		// master that has currently won write arbitration and so
 		// has permission to access this slave
-		if (N_MASTERS <= 1)
+		if (N_SLAVES <= 1)
 		begin
 
 			// If there's only ever one master, that index is
@@ -1422,7 +1422,7 @@ module	axi_interconnect #(
 			always @(*)
 			begin
 				reqwindex = 0;
-			for(iN=0; iN<N_MASTERS; iN=iN+1)
+			for(iN=0; iN<N_SLAVES; iN=iN+1)
 			if ((!mwgrant[iN] || mwempty[iN])
 				&&(wrequest[iN][M] && !wrequested[iN][M]))
 					reqwindex = reqwindex | iN[LGNM-1:0];
@@ -1435,7 +1435,7 @@ module	axi_interconnect #(
 			assign	swindex[M] = r_swindex;
 		end
 
-	end for (M=N_SLAVES; M<NSFULL; M=M+1)
+	end for (M=N_MASTERS; M<NSFULL; M=M+1)
 	begin
 
 		assign	swindex[M] = 0;
@@ -1443,13 +1443,13 @@ module	axi_interconnect #(
 	end endgenerate
 
 	// Calculate srindex (registered)
-	generate for (M=0; M<N_SLAVES; M=M+1)
+	generate for (M=0; M<N_MASTERS; M=M+1)
 	begin : R4_SLAVE_READ_INDEX
 	// {{{
 		// srindex is an index to the master that has currently won
 		// read arbitration to the given slave.
 
-		if (N_MASTERS <= 1)
+		if (N_SLAVES <= 1)
 		begin
 			// If there's only one master, srindex can always
 			// point to that master--no longic required
@@ -1465,7 +1465,7 @@ module	axi_interconnect #(
 			always @(*)
 			begin
 				reqrindex = 0;
-			for(iN=0; iN<N_MASTERS; iN=iN+1)
+			for(iN=0; iN<N_SLAVES; iN=iN+1)
 			if ((!mrgrant[iN] || mrempty[iN])
 				&&(rrequest[iN][M] && !rrequested[iN][M]))
 					reqrindex = reqrindex | iN[LGNM-1:0];
@@ -1478,7 +1478,7 @@ module	axi_interconnect #(
 			assign	srindex[M] = r_srindex;
 		end
 
-	end for (M=N_SLAVES; M<NSFULL; M=M+1)
+	end for (M=N_MASTERS; M<NSFULL; M=M+1)
 	begin
 
 		assign	srindex[M] = 0;
@@ -1486,7 +1486,7 @@ module	axi_interconnect #(
 	end endgenerate
 
 	// swgrant and srgrant (combinatorial)
-	generate for(M=0; M<N_SLAVES; M=M+1)
+	generate for(M=0; M<N_MASTERS; M=M+1)
 	begin : SGRANT
 	// {{{
 
@@ -1498,7 +1498,7 @@ module	axi_interconnect #(
 		always @(*)
 		begin
 			swgrant[M] = 0;
-			for(iN=0; iN<N_MASTERS; iN=iN+1)
+			for(iN=0; iN<N_SLAVES; iN=iN+1)
 			if (wgrant[iN][M])
 				swgrant[M] = 1;
 		end
@@ -1508,7 +1508,7 @@ module	axi_interconnect #(
 		always @(*)
 		begin
 			srgrant[M] = 0;
-			for(iN=0; iN<N_MASTERS; iN=iN+1)
+			for(iN=0; iN<N_SLAVES; iN=iN+1)
 			if (rgrant[iN][M])
 				srgrant[M] = 1;
 		end
@@ -1524,7 +1524,7 @@ module	axi_interconnect #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	// Assign outputs to the various slaves
-	generate for(M=0; M<N_SLAVES; M=M+1)
+	generate for(M=0; M<N_MASTERS; M=M+1)
 	begin : W5_WRITE_SLAVE_OUTPUTS
 	// {{{
 		reg			axi_awvalid;
@@ -1556,7 +1556,7 @@ module	axi_interconnect #(
 			awaccepts = slave_awaccepts[swindex[M]];
 
 		always @(*)
-			sawstall= (mst_axi_awvalid[M]&& !mst_axi_awready[M]);
+			sawstall= (M_AXI_AWVALID[M]&& !M_AXI_AWREADY[M]);
 
 		initial	axi_awvalid = 0;
 		always @(posedge  S_AXI_ACLK)
@@ -1595,7 +1595,7 @@ module	axi_interconnect #(
 			if (!OPT_LOWPOWER||(m_awvalid[swindex[M]]&&awaccepts))
 			begin
 				// swindex[M] is defined as 0 above in the
-				// case where N_MASTERS <= 1
+				// case where N_SLAVES <= 1
 				axi_awid    <= m_awid[   swindex[M]];
 				axi_awaddr  <= m_awaddr[ swindex[M]];
 				axi_awlen   <= m_awlen[  swindex[M]];
@@ -1622,7 +1622,7 @@ module	axi_interconnect #(
 		// Control the slave's W* channel
 		// {{{
 		always @(*)
-			swstall = (mst_axi_wvalid[M] && !mst_axi_wready[M]);
+			swstall = (M_AXI_WVALID[M] && !M_AXI_WREADY[M]);
 
 		initial	axi_wvalid = 0;
 		always @(posedge S_AXI_ACLK)
@@ -1652,7 +1652,7 @@ module	axi_interconnect #(
 		begin
 			if (!OPT_LOWPOWER || (m_wvalid[swindex[M]]&&slave_waccepts[swindex[M]]))
 			begin
-				// If N_MASTERS <= 1, swindex[M] is already defined
+				// If N_SLAVES <= 1, swindex[M] is already defined
 				// to be zero above
 				axi_wdata  <= m_wdata[swindex[M]];
 				axi_wstrb  <= m_wstrb[swindex[M]];
@@ -1674,32 +1674,32 @@ module	axi_interconnect #(
 
 		// Combinatorial assigns
 		// {{{
-		assign	mst_axi_awvalid[M]          = axi_awvalid;
-		assign	mst_axi_awid[   M*IW +: IW] = axi_awid;
-		assign	mst_axi_awaddr[ M*AW +: AW] = axi_awaddr;
-		assign	mst_axi_awlen[  M* 8 +:  8] = axi_awlen;
-		assign	mst_axi_awsize[ M* 3 +:  3] = axi_awsize;
-		assign	mst_axi_awburst[M* 2 +:  2] = axi_awburst;
-		assign	mst_axi_awlock[ M]          = axi_awlock;
-		assign	mst_axi_awcache[M* 4 +:  4] = axi_awcache;
-		assign	mst_axi_awprot[ M* 3 +:  3] = axi_awprot;
-		assign	mst_axi_awqos[  M* 4 +:  4] = axi_awqos;
+		assign	M_AXI_AWVALID[M]          = axi_awvalid;
+		assign	M_AXI_AWID[   M*IW +: IW] = axi_awid;
+		assign	M_AXI_AWADDR[ M*AW +: AW] = axi_awaddr;
+		assign	M_AXI_AWLEN[  M* 8 +:  8] = axi_awlen;
+		assign	M_AXI_AWSIZE[ M* 3 +:  3] = axi_awsize;
+		assign	M_AXI_AWBURST[M* 2 +:  2] = axi_awburst;
+		assign	M_AXI_AWLOCK[ M]          = axi_awlock;
+		assign	M_AXI_AWCACHE[M* 4 +:  4] = axi_awcache;
+		assign	M_AXI_AWPROT[ M* 3 +:  3] = axi_awprot;
+		assign	M_AXI_AWQOS[  M* 4 +:  4] = axi_awqos;
 		//
 		//
-		assign	mst_axi_wvalid[M]             = axi_wvalid;
-		assign	mst_axi_wdata[M*DW +: DW]     = axi_wdata;
-		assign	mst_axi_wstrb[M*DW/8 +: DW/8] = axi_wstrb;
-		assign	mst_axi_wlast[M]              = axi_wlast;
+		assign	M_AXI_WVALID[M]             = axi_wvalid;
+		assign	M_AXI_WDATA[M*DW +: DW]     = axi_wdata;
+		assign	M_AXI_WSTRB[M*DW/8 +: DW/8] = axi_wstrb;
+		assign	M_AXI_WLAST[M]              = axi_wlast;
 		//
 		//
-		assign	mst_axi_bready[M]             = axi_bready;
+		assign	M_AXI_BREADY[M]             = axi_bready;
 		// }}}
 		//
 	// }}}
 	end endgenerate
 
 
-	generate for(M=0; M<N_SLAVES; M=M+1)
+	generate for(M=0; M<N_MASTERS; M=M+1)
 	begin : R5_READ_SLAVE_OUTPUTS
 	// {{{
 		reg				axi_arvalid;
@@ -1717,7 +1717,7 @@ module	axi_interconnect #(
 		reg				arstall;
 
 		always @(*)
-			arstall= axi_arvalid && !mst_axi_arready[M];
+			arstall= axi_arvalid && !M_AXI_ARREADY[M];
 
 		initial	axi_arvalid = 0;
 		always @(posedge  S_AXI_ACLK)
@@ -1725,7 +1725,7 @@ module	axi_interconnect #(
 			axi_arvalid <= 0;
 		else if (!arstall)
 			axi_arvalid <= m_arvalid[srindex[M]] && slave_raccepts[srindex[M]];
-		else if (mst_axi_arready[M])
+		else if (M_AXI_ARREADY[M])
 			axi_arvalid <= 0;
 
 		initial axi_arid    = 0;
@@ -1753,7 +1753,7 @@ module	axi_interconnect #(
 		begin
 			if (!OPT_LOWPOWER || (m_arvalid[srindex[M]] && slave_raccepts[srindex[M]]))
 			begin
-				// If N_MASTERS <=1, srindex[M] is defined to be zero
+				// If N_SLAVES <=1, srindex[M] is defined to be zero
 				axi_arid    <= m_arid[   srindex[M]];
 				axi_araddr  <= m_araddr[ srindex[M]];
 				axi_arlen   <= m_arlen[  srindex[M]];
@@ -1783,18 +1783,18 @@ module	axi_interconnect #(
 			axi_rready = rskd_ready[srindex[M]];
 
 		//
-		assign	mst_axi_arvalid[M]          = axi_arvalid;
-		assign	mst_axi_arid[   M*IW +: IW] = axi_arid;
-		assign	mst_axi_araddr[ M*AW +: AW] = axi_araddr;
-		assign	mst_axi_arlen[  M* 8 +:  8] = axi_arlen;
-		assign	mst_axi_arsize[ M* 3 +:  3] = axi_arsize;
-		assign	mst_axi_arburst[M* 2 +:  2] = axi_arburst;
-		assign	mst_axi_arlock[ M]          = axi_arlock;
-		assign	mst_axi_arcache[M* 4 +:  4] = axi_arcache;
-		assign	mst_axi_arprot[ M* 3 +:  3] = axi_arprot;
-		assign	mst_axi_arqos[  M* 4 +:  4] = axi_arqos;
+		assign	M_AXI_ARVALID[M]          = axi_arvalid;
+		assign	M_AXI_ARID[   M*IW +: IW] = axi_arid;
+		assign	M_AXI_ARADDR[ M*AW +: AW] = axi_araddr;
+		assign	M_AXI_ARLEN[  M* 8 +:  8] = axi_arlen;
+		assign	M_AXI_ARSIZE[ M* 3 +:  3] = axi_arsize;
+		assign	M_AXI_ARBURST[M* 2 +:  2] = axi_arburst;
+		assign	M_AXI_ARLOCK[ M]          = axi_arlock;
+		assign	M_AXI_ARCACHE[M* 4 +:  4] = axi_arcache;
+		assign	M_AXI_ARPROT[ M* 3 +:  3] = axi_arprot;
+		assign	M_AXI_ARQOS[  M* 4 +:  4] = axi_arqos;
 		//
-		assign	mst_axi_rready[M]          = axi_rready;
+		assign	M_AXI_RREADY[M]          = axi_rready;
 		//
 	// }}}
 	end endgenerate
@@ -1807,7 +1807,7 @@ module	axi_interconnect #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	// Return values
-	generate for (N=0; N<N_MASTERS; N=N+1)
+	generate for (N=0; N<N_SLAVES; N=N+1)
 	begin : W6_WRITE_RETURN_CHANNEL
 	// {{{
 		reg	[1:0]	i_axi_bresp;
@@ -1819,7 +1819,7 @@ module	axi_interconnect #(
 		always @(posedge S_AXI_ACLK)
 		if (!S_AXI_ARESETN)
 			berr_valid[N] <= 0;
-		else if (wgrant[N][N_SLAVES] && m_wvalid[N] && m_wlast[N]
+		else if (wgrant[N][N_MASTERS] && m_wvalid[N] && m_wlast[N]
 				&& slave_waccepts[N])
 			berr_valid[N] <= 1;
 		else if (bskd_ready[N])
@@ -1836,7 +1836,7 @@ module	axi_interconnect #(
 			berr_id[N] <= m_awid[N];
 
 		always @(*)
-		if (wgrant[N][N_SLAVES])
+		if (wgrant[N][N_MASTERS])
 		begin
 			i_axi_bid   = berr_id[N];
 			i_axi_bresp = INTERCONNECT_ERROR;
@@ -1859,8 +1859,8 @@ module	axi_interconnect #(
 			S_AXI_ACLK, !S_AXI_ARESETN,
 			bskd_valid[N], bskd_ready[N],
 			{ i_axi_bid, i_axi_bresp },
-			slv_axi_bvalid[N], slv_axi_bready[N],
-			{ slv_axi_bid[N*IW +: IW], slv_axi_bresp[N*2 +: 2] }
+			S_AXI_BVALID[N], S_AXI_BREADY[N],
+			{ S_AXI_BID[N*IW +: IW], S_AXI_BRESP[N*2 +: 2] }
 			// }}}
 		);
 		// }}}
@@ -1868,7 +1868,7 @@ module	axi_interconnect #(
 	end endgenerate
 
 	// Return values
-	generate for (N=0; N<N_MASTERS; N=N+1)
+	generate for (N=0; N<N_SLAVES; N=N+1)
 	begin : R6_READ_RETURN_CHANNEL
 	// {{{
 
@@ -1882,13 +1882,13 @@ module	axi_interconnect #(
 		// response from the slave itself, or from our internally
 		// generated (no-slave exists) FSM.
 		always @(*)
-		if (rgrant[N][N_SLAVES])
+		if (rgrant[N][N_MASTERS])
 			rskd_valid[N] = !rerr_none[N];
 		else
 			rskd_valid[N] = mrgrant[N] && m_axi_rvalid[mrindex[N]];
 
 		always @(*)
-		if (rgrant[N][N_SLAVES])
+		if (rgrant[N][N_MASTERS])
 		begin
 			i_axi_rid   = rerr_id[N];
 			i_axi_rdata = 0;
@@ -1919,9 +1919,9 @@ module	axi_interconnect #(
 			S_AXI_ACLK, !S_AXI_ARESETN,
 			rskd_valid[N], rskd_ready[N],
 			{ i_axi_rid, i_axi_rdata, rskd_rlast[N], i_axi_rresp },
-			slv_axi_rvalid[N], slv_axi_rready[N],
-			{ slv_axi_rid[N*IW +: IW], slv_axi_rdata[N*DW +: DW],
-			  slv_axi_rlast[N], slv_axi_rresp[N*2 +: 2] }
+			S_AXI_RVALID[N], S_AXI_RREADY[N],
+			{ S_AXI_RID[N*IW +: IW], S_AXI_RDATA[N*DW +: DW],
+			  S_AXI_RLAST[N], S_AXI_RRESP[N*2 +: 2] }
 			// }}}
 		);
 		// }}}
@@ -1936,7 +1936,7 @@ module	axi_interconnect #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	//
-	generate for (N=0; N<N_MASTERS; N=N+1)
+	generate for (N=0; N<N_SLAVES; N=N+1)
 	begin : W7_COUNT_PENDING_WRITES
 	// {{{
 
@@ -2021,7 +2021,7 @@ module	axi_interconnect #(
 	// }}}
 	end endgenerate
 
-	generate for (N=0; N<N_MASTERS; N=N+1)
+	generate for (N=0; N<N_SLAVES; N=N+1)
 	begin : R7_COUNT_PENDING_READS
 	// {{{
 
@@ -2044,9 +2044,9 @@ module	axi_interconnect #(
 			rpending  <= 0;
 			mrempty[N]<= 1;
 			mrfull[N] <= 0;
-		end else case ({(m_arvalid[N] && slave_raccepts[N] && !rgrant[N][N_SLAVES]),
+		end else case ({(m_arvalid[N] && slave_raccepts[N] && !rgrant[N][N_MASTERS]),
 				(rskd_valid[N] && rskd_ready[N]
-					&& rskd_rlast[N] && !rgrant[N][N_SLAVES])})
+					&& rskd_rlast[N] && !rgrant[N][N_MASTERS])})
 		2'b01: begin
 			rpending      <= rpending - 1;
 			mrempty[N]    <= (rpending == 1);
@@ -2087,7 +2087,7 @@ module	axi_interconnect #(
 				rerr_last[N] <= (rerr_outstanding[N] == 2);
 				rerr_outstanding[N] <= rerr_outstanding[N] - 1;
 			end
-		end else if (m_arvalid[N] && rrequest[N][N_SLAVES]
+		end else if (m_arvalid[N] && rrequest[N][N_MASTERS]
 						&& slave_raccepts[N])
 		begin
 			rerr_none[N] <= 0;
@@ -2104,7 +2104,7 @@ module	axi_interconnect #(
 			rerr_id[N] <= 0;
 		else if (m_arvalid[N] && slave_raccepts[N])
 		begin
-			if (rrequest[N][N_SLAVES] || !OPT_LOWPOWER)
+			if (rrequest[N][N_MASTERS] || !OPT_LOWPOWER)
 				// A low-logic definition
 				rerr_id[N] <= m_arid[N];
 			else
@@ -2135,12 +2135,12 @@ module	axi_interconnect #(
 	//
 	//
 	initial begin
-		if (N_MASTERS == 0) begin
+		if (N_SLAVES == 0) begin
                         $display("At least one master must be defined");
                         $stop;
                 end
 
-		if (N_SLAVES == 0) begin
+		if (N_MASTERS == 0) begin
                         $display("At least one slave must be defined");
                         $stop;
                 end
@@ -2175,27 +2175,27 @@ module	axi_interconnect #(
 	//
 	// Initial/reset value checking
 	// {{{
-	initial	assert(N_SLAVES >= 1);
 	initial	assert(N_MASTERS >= 1);
+	initial	assert(N_SLAVES >= 1);
 	// }}}
 
 	////////////////////////////////////////////////////////////////////////
 	//
 	// Check the arbiter signals for consistency
 	// {{{
-	generate for(N=0; N<N_MASTERS; N=N+1)
+	generate for(N=0; N<N_SLAVES; N=N+1)
 	begin : F1_CHECK_MASTER_GRANTS
 	// {{{
 		// Write grants
 		always @(*)
-		for(iM=0; iM<=N_SLAVES; iM=iM+1)
+		for(iM=0; iM<=N_MASTERS; iM=iM+1)
 		begin
 			if (wgrant[N][iM])
 			begin
 				assert((wgrant[N] ^ (1<<iM))==0);
 				assert(mwgrant[N]);
 				assert(mwindex[N] == iM);
-				if (iM < N_SLAVES)
+				if (iM < N_MASTERS)
 				begin
 					assert(swgrant[iM]);
 					assert(swindex[iM] == N);
@@ -2208,8 +2208,8 @@ module	axi_interconnect #(
 			assert(wgrant[N] != 0);
 
 		always @(*)
-		if (wrequest[N][N_SLAVES])
-			assert(wrequest[N][N_SLAVES-1:0] == 0);
+		if (wrequest[N][N_MASTERS])
+			assert(wrequest[N][N_MASTERS-1:0] == 0);
 
 
 		always @(posedge S_AXI_ACLK)
@@ -2224,14 +2224,14 @@ module	axi_interconnect #(
 		// Read grant checking
 		//
 		always @(*)
-		for(iM=0; iM<=N_SLAVES; iM=iM+1)
+		for(iM=0; iM<=N_MASTERS; iM=iM+1)
 		begin
 			if (rgrant[N][iM])
 			begin
 				assert((rgrant[N] ^ (1<<iM))==0);
 				assert(mrgrant[N]);
 				assert(mrindex[N] == iM);
-				if (iM < N_SLAVES)
+				if (iM < N_MASTERS)
 				begin
 					assert(srgrant[iM]);
 					assert(srindex[iM] == N);
@@ -2244,11 +2244,11 @@ module	axi_interconnect #(
 			assert(rgrant[N] != 0);
 
 		always @(posedge S_AXI_ACLK)
-		if (S_AXI_ARESETN && f_past_valid && slv_axi_rvalid[N])
+		if (S_AXI_ARESETN && f_past_valid && S_AXI_RVALID[N])
 		begin
 			assert($stable(rgrant[N]));
 			assert($stable(mrindex[N]));
-			if (!rgrant[N][N_SLAVES])
+			if (!rgrant[N][N_MASTERS])
 				assert(!mrempty[N]);
 		end
 	// }}}
@@ -2260,7 +2260,7 @@ module	axi_interconnect #(
 	// {{{
 	////////////////////////////////////////////////////////////////////////
 	//
-	generate for(N=0; N<N_MASTERS; N=N+1)
+	generate for(N=0; N<N_SLAVES; N=N+1)
 	begin : F2_CHECK_MASTERS
 	// {{{
 		faxi_slave #(
@@ -2277,48 +2277,48 @@ module	axi_interconnect #(
 		  mstri(.i_clk(S_AXI_ACLK),
 			.i_axi_reset_n(S_AXI_ARESETN),
 			//
-			.i_axi_awid(   slv_axi_awid[   N*IW +:IW]),
-			.i_axi_awaddr( slv_axi_awaddr[ N*AW +:AW]),
-			.i_axi_awlen(  slv_axi_awlen[  N* 8 +: 8]),
-			.i_axi_awsize( slv_axi_awsize[ N* 3 +: 3]),
-			.i_axi_awburst(slv_axi_awburst[N* 2 +: 2]),
-			.i_axi_awlock( slv_axi_awlock[ N]),
-			.i_axi_awcache(slv_axi_awcache[N* 4 +: 4]),
-			.i_axi_awprot( slv_axi_awprot[ N* 3 +: 3]),
-			.i_axi_awqos(  slv_axi_awqos[  N* 4 +: 4]),
-			.i_axi_awvalid(slv_axi_awvalid[N]),
-			.i_axi_awready(slv_axi_awready[N]),
+			.i_axi_awid(   S_AXI_AWID[   N*IW +:IW]),
+			.i_axi_awaddr( S_AXI_AWADDR[ N*AW +:AW]),
+			.i_axi_awlen(  S_AXI_AWLEN[  N* 8 +: 8]),
+			.i_axi_awsize( S_AXI_AWSIZE[ N* 3 +: 3]),
+			.i_axi_awburst(S_AXI_AWBURST[N* 2 +: 2]),
+			.i_axi_awlock( S_AXI_AWLOCK[ N]),
+			.i_axi_awcache(S_AXI_AWCACHE[N* 4 +: 4]),
+			.i_axi_awprot( S_AXI_AWPROT[ N* 3 +: 3]),
+			.i_axi_awqos(  S_AXI_AWQOS[  N* 4 +: 4]),
+			.i_axi_awvalid(S_AXI_AWVALID[N]),
+			.i_axi_awready(S_AXI_AWREADY[N]),
 			//
-			.i_axi_wdata( slv_axi_wdata[ N*DW   +: DW]),
-			.i_axi_wstrb( slv_axi_wstrb[ N*DW/8 +: DW/8]),
-			.i_axi_wlast( slv_axi_wlast[ N]),
-			.i_axi_wvalid(slv_axi_wvalid[N]),
-			.i_axi_wready(slv_axi_wready[N]),
+			.i_axi_wdata( S_AXI_WDATA[ N*DW   +: DW]),
+			.i_axi_wstrb( S_AXI_WSTRB[ N*DW/8 +: DW/8]),
+			.i_axi_wlast( S_AXI_WLAST[ N]),
+			.i_axi_wvalid(S_AXI_WVALID[N]),
+			.i_axi_wready(S_AXI_WREADY[N]),
 			//
-			.i_axi_bid(   slv_axi_bid[   N*IW +:IW]),
-			.i_axi_bresp( slv_axi_bresp[ N*2 +: 2]),
-			.i_axi_bvalid(slv_axi_bvalid[N]),
-			.i_axi_bready(slv_axi_bready[N]),
+			.i_axi_bid(   S_AXI_BID[   N*IW +:IW]),
+			.i_axi_bresp( S_AXI_BRESP[ N*2 +: 2]),
+			.i_axi_bvalid(S_AXI_BVALID[N]),
+			.i_axi_bready(S_AXI_BREADY[N]),
 			//
-			.i_axi_arid(   slv_axi_arid[   N*IW +:IW]),
-			.i_axi_arready(slv_axi_arready[N]),
-			.i_axi_araddr( slv_axi_araddr[ N*AW +:AW]),
-			.i_axi_arlen(  slv_axi_arlen[  N* 8 +: 8]),
-			.i_axi_arsize( slv_axi_arsize[ N* 3 +: 3]),
-			.i_axi_arburst(slv_axi_arburst[N* 2 +: 2]),
-			.i_axi_arlock( slv_axi_arlock[ N]),
-			.i_axi_arcache(slv_axi_arcache[N* 4 +: 4]),
-			.i_axi_arprot( slv_axi_arprot[ N* 3 +: 3]),
-			.i_axi_arqos(  slv_axi_arqos[  N* 4 +: 4]),
-			.i_axi_arvalid(slv_axi_arvalid[N]),
+			.i_axi_arid(   S_AXI_ARID[   N*IW +:IW]),
+			.i_axi_arready(S_AXI_ARREADY[N]),
+			.i_axi_araddr( S_AXI_ARADDR[ N*AW +:AW]),
+			.i_axi_arlen(  S_AXI_ARLEN[  N* 8 +: 8]),
+			.i_axi_arsize( S_AXI_ARSIZE[ N* 3 +: 3]),
+			.i_axi_arburst(S_AXI_ARBURST[N* 2 +: 2]),
+			.i_axi_arlock( S_AXI_ARLOCK[ N]),
+			.i_axi_arcache(S_AXI_ARCACHE[N* 4 +: 4]),
+			.i_axi_arprot( S_AXI_ARPROT[ N* 3 +: 3]),
+			.i_axi_arqos(  S_AXI_ARQOS[  N* 4 +: 4]),
+			.i_axi_arvalid(S_AXI_ARVALID[N]),
 			//
 			//
-			.i_axi_rid(   slv_axi_rid[   N*IW +: IW]),
-			.i_axi_rdata( slv_axi_rdata[ N*DW +: DW]),
-			.i_axi_rresp( slv_axi_rresp[ N* 2 +: 2]),
-			.i_axi_rlast( slv_axi_rlast[ N]),
-			.i_axi_rvalid(slv_axi_rvalid[N]),
-			.i_axi_rready(slv_axi_rready[N]),
+			.i_axi_rid(   S_AXI_RID[   N*IW +: IW]),
+			.i_axi_rdata( S_AXI_RDATA[ N*DW +: DW]),
+			.i_axi_rresp( S_AXI_RRESP[ N* 2 +: 2]),
+			.i_axi_rlast( S_AXI_RLAST[ N]),
+			.i_axi_rvalid(S_AXI_RVALID[N]),
+			.i_axi_rready(S_AXI_RREADY[N]),
 			//
 			// ...
 			//
@@ -2352,7 +2352,7 @@ module	axi_interconnect #(
 	// {{{
 	////////////////////////////////////////////////////////////////////////
 	//
-	generate for(M=0; M<N_SLAVES; M=M+1)
+	generate for(M=0; M<N_MASTERS; M=M+1)
 	begin : F3_CHECK_SLAVES
 	// {{{
 		faxi_master #(
@@ -2369,48 +2369,48 @@ module	axi_interconnect #(
 		  slvi(.i_clk(S_AXI_ACLK),
 			.i_axi_reset_n(S_AXI_ARESETN),
 			//
-			.i_axi_awid(   mst_axi_awid[   M*IW+:IW]),
-			.i_axi_awaddr( mst_axi_awaddr[ M*AW +: AW]),
-			.i_axi_awlen(  mst_axi_awlen[  M*8 +: 8]),
-			.i_axi_awsize( mst_axi_awsize[ M*3 +: 3]),
-			.i_axi_awburst(mst_axi_awburst[M*2 +: 2]),
-			.i_axi_awlock( mst_axi_awlock[ M]),
-			.i_axi_awcache(mst_axi_awcache[M*4 +: 4]),
-			.i_axi_awprot( mst_axi_awprot[ M*3 +: 3]),
-			.i_axi_awqos(  mst_axi_awqos[  M*4 +: 4]),
-			.i_axi_awvalid(mst_axi_awvalid[M]),
-			.i_axi_awready(mst_axi_awready[M]),
+			.i_axi_awid(   M_AXI_AWID[   M*IW+:IW]),
+			.i_axi_awaddr( M_AXI_AWADDR[ M*AW +: AW]),
+			.i_axi_awlen(  M_AXI_AWLEN[  M*8 +: 8]),
+			.i_axi_awsize( M_AXI_AWSIZE[ M*3 +: 3]),
+			.i_axi_awburst(M_AXI_AWBURST[M*2 +: 2]),
+			.i_axi_awlock( M_AXI_AWLOCK[ M]),
+			.i_axi_awcache(M_AXI_AWCACHE[M*4 +: 4]),
+			.i_axi_awprot( M_AXI_AWPROT[ M*3 +: 3]),
+			.i_axi_awqos(  M_AXI_AWQOS[  M*4 +: 4]),
+			.i_axi_awvalid(M_AXI_AWVALID[M]),
+			.i_axi_awready(M_AXI_AWREADY[M]),
 			//
-			.i_axi_wready(mst_axi_wready[M]),
-			.i_axi_wdata( mst_axi_wdata[ M*DW   +: DW]),
-			.i_axi_wstrb( mst_axi_wstrb[ M*DW/8 +: DW/8]),
-			.i_axi_wlast( mst_axi_wlast[ M]),
-			.i_axi_wvalid(mst_axi_wvalid[M]),
+			.i_axi_wready(M_AXI_WREADY[M]),
+			.i_axi_wdata( M_AXI_WDATA[ M*DW   +: DW]),
+			.i_axi_wstrb( M_AXI_WSTRB[ M*DW/8 +: DW/8]),
+			.i_axi_wlast( M_AXI_WLAST[ M]),
+			.i_axi_wvalid(M_AXI_WVALID[M]),
 			//
-			.i_axi_bid(   mst_axi_bid[   M*IW +: IW]),
-			.i_axi_bresp( mst_axi_bresp[ M*2 +: 2]),
-			.i_axi_bvalid(mst_axi_bvalid[M]),
-			.i_axi_bready(mst_axi_bready[M]),
+			.i_axi_bid(   M_AXI_BID[   M*IW +: IW]),
+			.i_axi_bresp( M_AXI_BRESP[ M*2 +: 2]),
+			.i_axi_bvalid(M_AXI_BVALID[M]),
+			.i_axi_bready(M_AXI_BREADY[M]),
 			//
-			.i_axi_arid(   mst_axi_arid[   M*IW +:IW]),
-			.i_axi_araddr( mst_axi_araddr[ M*AW +:AW]),
-			.i_axi_arlen(  mst_axi_arlen[  M*8  +: 8]),
-			.i_axi_arsize( mst_axi_arsize[ M*3  +: 3]),
-			.i_axi_arburst(mst_axi_arburst[M*2  +: 2]),
-			.i_axi_arlock( mst_axi_arlock[ M]),
-			.i_axi_arcache(mst_axi_arcache[M* 4 +: 4]),
-			.i_axi_arprot( mst_axi_arprot[ M* 3 +: 3]),
-			.i_axi_arqos(  mst_axi_arqos[  M* 4 +: 4]),
-			.i_axi_arvalid(mst_axi_arvalid[M]),
-			.i_axi_arready(mst_axi_arready[M]),
+			.i_axi_arid(   M_AXI_ARID[   M*IW +:IW]),
+			.i_axi_araddr( M_AXI_ARADDR[ M*AW +:AW]),
+			.i_axi_arlen(  M_AXI_ARLEN[  M*8  +: 8]),
+			.i_axi_arsize( M_AXI_ARSIZE[ M*3  +: 3]),
+			.i_axi_arburst(M_AXI_ARBURST[M*2  +: 2]),
+			.i_axi_arlock( M_AXI_ARLOCK[ M]),
+			.i_axi_arcache(M_AXI_ARCACHE[M* 4 +: 4]),
+			.i_axi_arprot( M_AXI_ARPROT[ M* 3 +: 3]),
+			.i_axi_arqos(  M_AXI_ARQOS[  M* 4 +: 4]),
+			.i_axi_arvalid(M_AXI_ARVALID[M]),
+			.i_axi_arready(M_AXI_ARREADY[M]),
 			//
 			//
-			.i_axi_rresp( mst_axi_rresp[ M*2 +: 2]),
-			.i_axi_rvalid(mst_axi_rvalid[M]),
-			.i_axi_rdata( mst_axi_rdata[ M*DW +: DW]),
-			.i_axi_rready(mst_axi_rready[M]),
-			.i_axi_rlast( mst_axi_rlast[ M]),
-			.i_axi_rid(   mst_axi_rid[   M*IW +: IW]),
+			.i_axi_rresp( M_AXI_RRESP[ M*2 +: 2]),
+			.i_axi_rvalid(M_AXI_RVALID[M]),
+			.i_axi_rdata( M_AXI_RDATA[ M*DW +: DW]),
+			.i_axi_rready(M_AXI_RREADY[M]),
+			.i_axi_rlast( M_AXI_RLAST[ M]),
+			.i_axi_rid(   M_AXI_RID[   M*IW +: IW]),
 			//
 			// ...
 			//
@@ -2421,13 +2421,13 @@ module	axi_interconnect #(
 			//
 
 		always @(*)
-		if (mst_axi_awvalid[M])
-			assert(((mst_axi_awaddr[M*AW +:AW]^SLAVE_ADDR[M*AW +:AW])
+		if (M_AXI_AWVALID[M])
+			assert(((M_AXI_AWADDR[M*AW +:AW]^SLAVE_ADDR[M*AW +:AW])
 				& SLAVE_MASK[M*AW +: AW]) == 0);
 
 		always @(*)
-		if (mst_axi_arvalid[M])
-			assert(((mst_axi_araddr[M*AW +:AW]^SLAVE_ADDR[M*AW +:AW])
+		if (M_AXI_ARVALID[M])
+			assert(((M_AXI_ARADDR[M*AW +:AW]^SLAVE_ADDR[M*AW +:AW])
 				& SLAVE_MASK[M*AW +: AW]) == 0);
 	// }}}
 	end endgenerate
@@ -2444,7 +2444,7 @@ module	axi_interconnect #(
 	// {{{
 	////////////////////////////////////////////////////////////////////////
 	//
-	generate for(N=0; N<N_MASTERS; N=N+1)
+	generate for(N=0; N<N_SLAVES; N=N+1)
 	begin : // ...
 	// {{{
 	// }}}
@@ -2457,7 +2457,7 @@ module	axi_interconnect #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	//
-	generate for(N=0; N<N_MASTERS; N=N+1)
+	generate for(N=0; N<N_SLAVES; N=N+1)
 	begin : F4_DOUBLE_BUFFER_CHECKS
 	// {{{
 	// ...
@@ -2472,7 +2472,7 @@ module	axi_interconnect #(
 	//
 	// Can every master reach every slave?
 	// Can things transition without dropping the request line(s)?
-	generate for(N=0; N<N_MASTERS; N=N+1)
+	generate for(N=0; N<N_SLAVES; N=N+1)
 	begin : F5_COVER_CONNECTIVITY_FROM_MASTER
 	// {{{
 	// ...
@@ -2534,29 +2534,29 @@ module	axi_interconnect #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	//
-	generate for(N=0; N<N_MASTERS; N=N+1)
+	generate for(N=0; N<N_SLAVES; N=N+1)
 	begin : F6_LIMITING_ASSUMPTIONS
 
 		if (!OPT_WRITES)
 		begin
 			always @(*)
-				assume(slv_axi_awvalid[N] == 0);
+				assume(S_AXI_AWVALID[N] == 0);
 			always @(*)
 				assert(wgrant[N] == 0);
 			always @(*)
 				assert(mwgrant[N] == 0);
 			always @(*)
-				assert(slv_axi_bvalid[N]== 0);
+				assert(S_AXI_BVALID[N]== 0);
 		end
 
 		if (!OPT_READS)
 		begin
 			always @(*)
-				assume(slv_axi_arvalid [N]== 0);
+				assume(S_AXI_ARVALID [N]== 0);
 			always @(*)
 				assert(rgrant[N] == 0);
 			always @(*)
-				assert(slv_axi_rvalid[N] == 0);
+				assert(S_AXI_RVALID[N] == 0);
 		end
 
 	end endgenerate
@@ -2567,4 +2567,5 @@ module	axi_interconnect #(
 `endif
 // }}}
 endmodule
+
 

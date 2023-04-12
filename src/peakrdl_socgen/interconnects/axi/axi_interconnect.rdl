@@ -1,6 +1,6 @@
 addrmap axi_interconnect #(
     longint unsigned N_SLAVES = 2,
-    longint unsigned N_MASTERS = 2,
+    longint unsigned N_MASTERS = 3,
     longint unsigned DATA_WIDTH = 64,
     longint unsigned ADDR_WIDTH = 32,
 
@@ -11,12 +11,12 @@ addrmap axi_interconnect #(
     ){
 
     axi_intf #(
-        .INTF(intf_t'{name:"axi_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"slv_axi_", modport:Modport::slave }),
+        .INTF(intf_cap'{name:"axi_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"S_AXI_", modport:Modport::slave, cap:true }),
         .N(N_MASTERS)
         )  slv_axi_;
 
     axi_intf #(
-        .INTF(intf_t'{name:"axi_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"mst_axi_", modport:Modport::master }),
+        .INTF(intf_cap'{name:"axi_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"M_AXI_", modport:Modport::master, cap:true }),
         .N(N_SLAVES)
         )  mst_axi_;
 
@@ -27,4 +27,51 @@ addrmap axi_interconnect #(
 
 };
 
+addrmap axi2axi_lite #(
+    longint unsigned S_DATA_WIDTH = 64,
+    longint unsigned M_DATA_WIDTH = 32,
+    longint unsigned ADDR_WIDTH = 32
 
+    ){
+    adapter;
+
+    axi_intf #(
+        .INTF(intf_cap'{name:"axi_intf", DATA_WIDTH:S_DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"S_AXI_", modport:Modport::slave, cap:true }),
+        .N(1)
+        )  slave;
+
+    axi_lite_intf #(
+        .INTF(intf_cap'{name:"axi_lite_intf", DATA_WIDTH:M_DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"M_AXI_", modport:Modport::master, cap:true }),
+        .N(1)
+        )  master;
+
+    reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+
+    clk S_AXI_ACLK;
+    rstn S_AXI_ARESETN;
+
+};
+
+addrmap axi_lite2apb #(
+    longint unsigned DATA_WIDTH = 32,
+    longint unsigned ADDR_WIDTH = 32
+
+    ){
+    adapter;
+
+    axi_lite_intf #(
+        .INTF(intf_cap'{name:"axi_lite_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"S_AXI_", modport:Modport::slave, cap:true }),
+        .N(1)
+        )  slave;
+
+    apb_intf #(
+        .INTF(intf_cap'{name:"apb_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"M_APB_", modport:Modport::master, cap:true }),
+        .N(1)
+        )  master;
+
+    reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+
+    clk S_AXI_ACLK;
+    rstn S_AXI_ARESETN;
+
+};

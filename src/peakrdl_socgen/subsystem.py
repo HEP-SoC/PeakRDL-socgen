@@ -12,7 +12,7 @@ from systemrdl.rdltypes.user_struct import UserStruct
 from systemrdl.rdltypes.user_enum import UserEnum
 
 from peakrdl_socgen import module
-from peakrdl_socgen.intc import Intc, IntcWrapper
+from peakrdl_socgen.intc_wrapper import IntcWrapper
 from peakrdl_socgen.intf import create_intf
 
 from .module import Module

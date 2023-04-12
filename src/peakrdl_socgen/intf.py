@@ -25,11 +25,16 @@ class Signal:
     def __init__(self,
             node : SignalNode,
             prefix : str = "",
+            capitalize : bool = False,
             ):
 
         self.node = node
-        self.name = prefix + node.inst_name # TOOD check if correct
+
+        # self.sig_name = prefix + node.inst_name # TOOD check if correct
+        self.prefix = prefix
         self.basename = node.inst_name
+        self.capitalize = capitalize
+
         self.width = node.width
         self.ss =  node.get_property('ss', default=False)    != False
         self.miso = node.get_property('miso', default=False) != False
@@ -37,7 +42,15 @@ class Signal:
         self.bidir = self.miso and self.mosi
         self.is_clk = self.isClk()
         self.is_rst = self.isRst()
+        
+        self.activelow = node.get_property('activelow', default=False) != False
+        self.activehigh = node.get_property('activehigh', default=False) != False
 
+    @property
+    def name(self):
+        if self.capitalize:
+            return self.prefix + self.node.inst_name.upper()
+        return self.prefix + self.node.inst_name
 
     def isShared(self):
         return not self.ss and not self.miso  # TODO what happens for bidir?
@@ -65,7 +78,7 @@ class Signal:
         return False
 
     def print(self):
-        print("Signal: ", self.name, " Width: ", self.width, " SS: ", self.ss, " MOSI: ", self.mosi, " MISO ", self.miso)
+        print("Signal: ", self.name, " Width: ", self.width, " SS: ", self.ss, " MOSI: ", self.mosi, " MISO ", self.miso, " Cap: ", self.capitalize, " Active low/high", self.activelow, self.activehigh)
 
 class Intf:
     def __init__(self,
@@ -74,14 +87,18 @@ class Intf:
             rdlc : RDLCompiler,
             sig_prefix : str = "",
             modport : IntfModport = IntfModport.SLAVE,
+            capitalize : bool = False,
             N : int=1,
             ):
         self.node = intf_node
         self.rdlc = rdlc
 
         prop = self.node.get_property("intf_inst")
+
         self.name = prop.name
         self.sig_prefix = sig_prefix
+        self.capitalize = capitalize
+
         self.addr_width = prop.ADDR_WIDTH
         self.data_width = prop.DATA_WIDTH
         self.modport = modport
@@ -94,7 +111,7 @@ class Intf:
         signals = []
         if self.isIntf(intf_node):
             for s in intf_node.signals():
-                signals.append(Signal(s, prefix))
+                signals.append(Signal(s, prefix, capitalize=self.capitalize))
         return signals
 
     def findSignal(self, basename : str) -> Signal:
@@ -213,6 +230,7 @@ def create_intf(
         data_width : int,
         prefix : str,
         modport : IntfModport,
+        capitalize : bool = False,
         N : int=1,
         ):
     
@@ -229,7 +247,7 @@ def create_intf(
 
     assert(isinstance(new_intf, AddrmapNode))
 
-    return Intf(new_intf, parent_node, rdlc, prefix, list(IntfModport)[modport.value], N)
+    return Intf(new_intf, parent_node, rdlc, prefix, list(IntfModport)[modport.value], capitalize, N)
 
 def get_intf_t_param_str(
         intf_type : str,
@@ -240,5 +258,19 @@ def get_intf_t_param_str(
         ) -> str:
 
     param = f"intf_t'{{name: \"{intf_type}\", DATA_WIDTH: {data_width}, ADDR_WIDTH: {addr_width}, prefix: \"{prefix}\", modport:Modport::{modport.name.lower()} }}"
+
+    return param
+
+def get_intf_cap_param_str(
+        intf_type : str,
+        addr_width : int,
+        data_width : int,
+        prefix : str,
+        modport : IntfModport,
+        cap : bool,
+        ) -> str:
+    cap_str =  cap.__str__().lower()
+
+    param = f"intf_cap'{{name: \"{intf_type}\", DATA_WIDTH: {data_width}, ADDR_WIDTH: {addr_width}, prefix: \"{prefix}\", modport:Modport::{modport.name.lower()}, cap:{cap_str} }}"
 
     return param

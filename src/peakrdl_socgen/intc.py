@@ -1,236 +1,10 @@
 from systemrdl import RDLCompiler
-from systemrdl.node import Node, MemNode, RootNode, AddressableNode, RegNode, FieldNode, AddrmapNode
-from typing import List, Union, Dict, Any
-import math
-from enum import Enum
-
-from systemrdl.core.parameter import Parameter
+from systemrdl.node import AddrmapNode
 from systemrdl.rdltypes.array import ArrayPlaceholder
-from systemrdl.rdltypes.user_struct import UserStruct, UserStructMeta
-from systemrdl.rdltypes.user_enum import UserEnum
+from typing import List
 
-
-# from .bus import Bus, Signal, SignalType, BusRDL, create_bus, BusType
 from .module import Module
-from .intf import Intf, IntfModport, create_intf, Signal, get_intf_t_param_str
-
-class InvalidAdapter(Exception):
-    "Adapter cannot be created from given interfaces"
-    pass
-
-class IntcWrapper(Module):
-    def __init__(self,
-            rdlc : RDLCompiler,
-            subsystem_node : "Subsystem", # type: ignore
-            ext_slv_intfs : List[Intf],
-            ext_master_ports : List[Intf],
-            ):
-        self.rdlc = rdlc
-        self.isIntcWrap = True
-        self.parent_node = subsystem_node.node
-        self.subsystem_node = subsystem_node
-
-        self.ext_slv_intfs = ext_slv_intfs
-        self.ext_master_ports = ext_master_ports
-
-        intc_node = self.create_intc_wrap_node()
-        assert isinstance(intc_node, AddrmapNode)
-        super().__init__(intc_node, self.rdlc)
-
-        self.adapters = self.create_adapters(self.determineIntc())
-
-        self.intc = self.create_intc()
-
-    def getOrigTypeName(self) -> str:
-        return self.node.inst_name
-
-    def getSigVerilogName(self, s : Signal, intf : Intf | None = None) -> str:
-        if intf is None:
-            return s.name
-        if intf.parent_node == self.node:
-            return s.name
-        else:
-            return intf.parent_node.inst_name + "_" + s.name
-    
-    def create_intc(self):
-        intc = self.determineIntc()
-
-        # Find all interconnect master ports, Masters of adapters and slaves to interconnect wrap
-        intc_slave_ports = []
-        for ad in self.adapters:
-            intf = ad.otherExtPort
-            if intf.modport == IntfModport.MASTER and intf.name == intc.intf_type_name:
-                intc_slave_ports.append(intf)
-        for intf in self.intfs:
-            if intf.modport == IntfModport.SLAVE and intf.name == intc.intf_type_name:
-                intc_slave_ports.append(intf)
-
-        # Find all interconnect slave ports, Slaves of self.adapters and masters to interconnect wrap
-        intc_master_ports = []
-        for ad in self.adapters:
-            intf = ad.otherExtPort
-            if intf.modport == IntfModport.SLAVE and intf.name == intc.intf_type_name:
-                intc_master_ports.append(intf)
-        for intf in self.intfs:
-            if intf.modport == IntfModport.MASTER and intf.name == intc.intf_type_name:
-                intc_master_ports.append(intf)
-        
-        return Intc(
-                self.rdlc,
-                intc_slave_ports,
-                intc_master_ports,
-                intc,
-                subsystem_node=self.subsystem_node
-                )
-
-    def create_adapters(self, intc : "IntcBase") -> List["Adapter"]:
-        adapters = []
-        for intf in self.intfs:
-            try:
-                adapter = Adapter(intf, intc, self.rdlc)
-            except InvalidAdapter:
-                adapter = None
-                pass
-            if adapter is not None:
-                adapters.append(adapter)
-        return adapters
-     
-    def determineIntc(self) -> "IntcBase":
-        slave_intfs = self.getSlaveIntfs()
-        intf_type_cnt = {}
-        for intf in slave_intfs:
-            intf_type_cnt[intf.name] = 0
-        for intf in slave_intfs:
-            intf_type_cnt[intf.name] += 1
-
-        max_intf = max(intf_type_cnt, key=intf_type_cnt.get) # type: ignore
-
-        intc_type = max_intf.replace("_intf", "_interconnect")
-
-        return IntcBase(intc_type, max_intf)
-
-    def create_intc_wrap_node(self):
-        
-        params = r"'{"
-        ports = [*self.ext_slv_intfs, *self.ext_master_ports]
-        for i, intf in enumerate(ports):
-            modport = None
-            if intf in self.ext_slv_intfs:
-                modport = IntfModport.SLAVE
-            elif intf in self.ext_master_ports:
-                modport = IntfModport.MASTER
-            assert modport is not None
-
-            if intf.parent_node == self.parent_node: # if interface is from top node dont add prefix of instantiation
-                prefix = intf.sig_prefix
-            else:
-                prefix = intf.parent_node.inst_name + "_" + intf.sig_prefix
-
-            params = params + get_intf_t_param_str(
-                intf_type=intf.name,
-                addr_width=intf.addr_width,
-                data_width=intf.data_width,
-                # prefix=intf.parent_node.inst_name + "_" + intf.sig_prefix,
-                prefix=prefix,
-                modport=modport
-                )
-            if i < len(ports)-1:
-                params = params + ", "
-        params = params + r"}"
-        override_params = self.rdlc.eval(params)
-
-        new_intc = self.rdlc.elaborate(
-                top_def_name="interconnect_wrap",
-                inst_name= self.parent_node.inst_name + "_intc_wrap",
-                parameters= {'INTF': override_params},
-                ).get_child_by_name(self.parent_node.inst_name + "_intc_wrap")
-
-        return new_intc
-
-class Adapter(Module):
-    def __init__(self, 
-            intf : Intf,
-            intc : "IntcBase",
-            rdlc : RDLCompiler,
-            ):
-
-        self.rdlc = rdlc
-        self.ext_port = intf
-        self.node = self.create_adapter(intf, intc)
-
-        super().__init__(self.node, self.rdlc) # type: ignore
-
-    
-    def adapterDrivesExtPort(self):
-        return self.ext_port.modport == IntfModport.MASTER
-
-    @property
-    def otherExtPort(self):
-        if self.adapterDrivesExtPort():
-            return self.getSlaveIntfs()[0]
-        else:
-            return self.getMasterIntfs()[0]
-
-    def isDriver(self, s : Signal, intf : Intf):
-        if intf not in [self.ext_port]:
-            assert False, f"Interface is not connected to interconnect {intf.parent_node.inst_name}_{intf.sig_prefix}{intf.name}"
-
-        if self.adapterDrivesExtPort():
-            if s.isOnlyMiso():
-                return True
-            elif s.isOnlyMosi():
-                return False
-        else:
-            if s.isOnlyMiso():
-                return False
-            elif s.isOnlyMosi():
-                return True
-
-        assert False, f"Interface is not connected to interconnect {intf.parent_node.inst_name}_{intf.sig_prefix}{intf.name}"
-
-
-    def get_intfs(self):
-        intfs = []
-        for a in self.getAddrmaps():
-            if a.get_property("intf"):
-                intfs.append(self.construcIntf(a)) # type: ignore
-
-        return intfs
-
-    def construcIntf(self,
-            intf : AddrmapNode,
-            ):
-        intf_inst = intf.get_property("intf_inst").members
-        n_array = intf.get_property("n_array")
-
-        return Intf(
-                intf, 
-                self.node, # type: ignore 
-                self.rdlc,
-                sig_prefix=intf_inst['prefix'],
-                modport=list(IntfModport)[intf_inst['modport'].value],
-                N=n_array
-                )
-
-    def create_adapter(self,
-            intf : Intf,
-            intc : "IntcBase",
-            ):
-        if intf.name != intc.intf_type_name:
-            adapter_name = ""
-            if intf.modport == IntfModport.MASTER:
-                adapter_name = intc.intf_type_name.replace("_intf", "") + "2" + intf.name.replace("_intf", "")
-            elif intf.modport == IntfModport.SLAVE:
-                adapter_name = intf.name.replace("_intf", "") + "2" + intc.intf_type_name.replace("_intf", "")
-
-            adapter = self.rdlc.elaborate(
-                    top_def_name=adapter_name,
-                    inst_name= adapter_name,
-                    ).get_child_by_name(adapter_name)
-
-            return adapter
-
-        raise InvalidAdapter
+from .intf import Intf, Signal, IntfModport
 
 class IntcBase:
     def __init__(self, 
@@ -245,14 +19,15 @@ class Intc(Module):
             rdlc : RDLCompiler,
             ext_slv_intfs : List[Intf],
             ext_mst_intfs : List[Intf],
-            intc_base  : IntcBase,
             subsystem_node : "Subsystem", # type: ignore
             ):
         self.rdlc = rdlc
         self.ext_slv_intfs = ext_slv_intfs
         self.ext_mst_intfs = ext_mst_intfs
-        self.intc_base = intc_base
         self.subsystem_node = subsystem_node
+
+        self.intf_type_name = ext_slv_intfs[0].name
+        self.type_name = ext_slv_intfs[0].name.replace("_intf", "_interconnect")
 
         all_ports = [*self.ext_slv_intfs, *self.ext_mst_intfs]
         same_intf = all(x.name == all_ports[0].name for x in all_ports)
@@ -262,8 +37,11 @@ class Intc(Module):
 
         super().__init__(self.node, self.rdlc)
 
-    def get_intfs(self):
-        return [self.getSlaveIntf(), self.getMasterIntf()]
+        # for i in self.ext_slv_intfs:
+        #     i.print()
+
+    # def get_intfs(self):
+    #     return [self.getSlaveIntf(), self.getMasterIntf()]
 
     def isDriver(self, s : Signal, intf : Intf):
         if intf in self.ext_slv_intfs:
@@ -283,8 +61,7 @@ class Intc(Module):
     def create_intc_node(self) -> AddrmapNode:
 
         intc_params = self.getIntcParams()
-        intc_name = self.intc_base.intc_type_name
-
+        intc_name = self.type_name
 
         param_values = {
                 'N_SLAVES'   : len(self.ext_mst_intfs),
@@ -354,40 +131,30 @@ class Intc(Module):
 
         return {'data_w': max_dataw, 'addr_w': max_addrw}
 
-    def getSlaveIntf(self):
-        slaves = []
+    def get_intfs(self):
+        intfs = []
         for c in self.getAddrmaps():
             if c.get_property("intf"):
                 intf_inst = c.get_property("intf_inst")
-                if intf_inst.modport.name == "slave":
-                    N = c.get_property("n_array")
-                    intf = Intf(c,
-                                self.node,
-                                self.rdlc,
-                                sig_prefix=intf_inst.prefix,
-                                modport=list(IntfModport)[intf_inst.modport.value],
-                                N=N,
-                                )
-                    slaves.append(intf)
-        assert len(slaves) == 1, "Only 1 slave port allowed in interconnect"
+                N = c.get_property("n_array")
+                try:
+                    cap = intf_inst.cap
+                except:
+                    cap = False
 
-        return slaves[0]
+                intf = Intf(c,
+                            self.node,
+                            self.rdlc,
+                            sig_prefix=intf_inst.prefix,
+                            modport=list(IntfModport)[intf_inst.modport.value],
+                            N=N,
+                            capitalize=cap,
+                            )
+                intfs.append(intf)
+        return intfs
+
+    def getSlaveIntf(self):
+        return [intf for intf in self.intfs if intf.modport == IntfModport.SLAVE]
 
     def getMasterIntf(self):
-        masters = []
-        for c in self.getAddrmaps():
-            if c.get_property("intf"):
-                intf_inst = c.get_property("intf_inst")
-                if intf_inst.modport.name == "master":
-                    N = c.get_property("n_array")
-                    intf = Intf(c,
-                                self.node,
-                                self.rdlc,
-                                sig_prefix=intf_inst.prefix,
-                                modport=list(IntfModport)[intf_inst.modport.value],
-                                N=N,
-                                )
-                    masters.append(intf)
-        assert len(masters) == 1, "Only 1 slave port allowed in interconnect"
-
-        return masters[0]
+        return [intf for intf in self.intfs if intf.modport == IntfModport.MASTER]

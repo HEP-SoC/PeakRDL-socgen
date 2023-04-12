@@ -95,3 +95,40 @@ addrmap axi_intf #(
  reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
 
 };
+
+addrmap axi_lite_intf #(
+    intf_t INTF = intf_t'{name:"axi_lite_intf", ADDR_WIDTH:32, DATA_WIDTH:32, prefix:"", modport:Modport::slave},
+    longint unsigned N=1
+    ){
+    intf;
+    intf_inst = INTF;
+    n_array = N;
+
+    awaddr  #(.W(N*INTF.ADDR_WIDTH))    awaddr;
+    awprot  #(.W(N*3))                  awprot;
+    awvalid #(.W(N))                    awvalid;
+    awready #(.W(N))                    awready;
+    
+    wdata   #(.W(N*INTF.DATA_WIDTH))    wdata;
+    wstrb   #(.W(N*INTF.DATA_WIDTH/8))  wstrb;
+    wvalid  #(.W(N))                    wvalid;
+    wready  #(.W(N))                    wready;
+    
+    bresp   #(.W(N*2))                  bresp;
+    bvalid  #(.W(N))                    bvalid;
+    bready  #(.W(N))                    bready;
+    
+    araddr  #(.W(N*INTF.ADDR_WIDTH))    araddr;
+    arprot  #(.W(N*3))                  arprot;
+    arvalid #(.W(N*1))                  arvalid;
+    arready #(.W(N*1))                  arready;
+    
+    rdata   #(.W(N*INTF.DATA_WIDTH))    rdata;
+    rresp   #(.W(N*2))                  rresp;
+    rvalid  #(.W(N*1))                  rvalid;
+    rready  #(.W(N*1))                  rready;
+
+
+ reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+
+};

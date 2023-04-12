@@ -17,24 +17,31 @@ module {{ intcw.getOrigTypeName() }}(
 
 {% for module in intcw.adapters + [intcw.intc] %} {# TODO add interconnects #}
 {% for s in module.signals %}
-{% if s.is_clk or s.is_rst %}
+{% if s.is_clk %}
     wire   {{ module.getSigVerilogName(s) }};
     assign {{ module.getSigVerilogName(s) }} = {{ intcw.getClkOrRst(s).name }}; 
 {% endif %}
+{% if s.is_rst %}
+    {% set rst_sig = intcw.getClkOrRst(s) %}
+    wire   {{ module.getSigVerilogName(s) }};
+    assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh %}!{% endif %}{{ rst_sig.name }}; 
+{% endif %}
 {% endfor %}
+
 {% endfor %}
 
 /*======================================================================================== 
 *===================== Adapters ==========================================================
 *========================================================================================*/
 
-{% for adapter in intcw.adapters %}
-{% for intf in [adapter.otherExtPort] %}
+{% for intf in intcw.getAdaptersGlueIntfs() %}
     {% for s in intf.signals %}
-    wire [{{ s.width - 1 }}:0] {{ adapter.getSigVerilogName(s) }};
+    wire [{{ s.width - 1 }}:0] {{ s.name }};
     {% endfor %}
 
 {% endfor %}
+
+{% for adapter in intcw.adapters %}
     // Instantiate {{ adapter.node.get_path() }}
     {% set params = adapter.getHdlParameters() %}
     {{ adapter.getOrigTypeName() }} {% if params|length > 0 %}#(
@@ -46,15 +53,14 @@ module {{ intcw.getOrigTypeName() }}(
         {% for s in adapter.signals %}
             .{{ s.name }}({{ adapter.getSigVerilogName(s) }}),
         {% endfor %}
-        {% for intf in adapter.intfs %} {# TODO CHECK THIS #}
-            {% set last_intf = loop.last %}
-            {% for s in intf.signals %}
-            .{{ s.name }}({{ adapter.getSigVerilogName(s) if intf == adapter.otherExtPort else adapter.ext_port.findSignal(s.basename).name }}){% if not (loop.last and last_intf) %}, {% endif %}
-
-            {% endfor %}
-
+        {% for s in adapter.adapt_from.signals %}
+            .{{ adapter.getLeftIntf().findSignal(s.basename).name }} ({{ s.name }}),
         {% endfor %}
 
+        {% for s in adapter.adapt_to.signals %}
+            .{{ adapter.getRightIntf().findSignal(s.basename).name }} ({{ s.name }}){% if not loop.last %}, {% endif %}
+
+        {% endfor %}
     );
 {% endfor %}
 
@@ -89,7 +95,7 @@ module {{ intcw.getOrigTypeName() }}(
     {% for intf in intcw.intc.intfs %}
         {% set intf_last = loop.last %}
         {% for s in intf.signals %}
-        .{{ intf.sig_prefix }}{{ s.basename }}({{ intcw.getSigVerilogName(s, intf) }}){% if not (loop.last and intf_last) %}, {% endif %}
+        .{{ s.name }}({{ intcw.getSigVerilogName(s, intf) }}){% if not (loop.last and intf_last) %}, {% endif %}
 
         {% endfor %}
     {% endfor %}

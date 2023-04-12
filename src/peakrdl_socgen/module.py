@@ -53,6 +53,9 @@ class Module:
     def getMasterIntfs(self) -> List[Intf]:
         return [intf for intf in self.intfs if intf.modport == IntfModport.MASTER]
 
+    def hasIntf(self, intf : Intf):
+        return intf in self.intfs
+
     def getHdlParameters(self):
         params = [param for param in self.node.inst.parameters if self.isHwParam(param)]
 
@@ -95,6 +98,10 @@ class Module:
         intfs = []
         for p in intfs_prop:
             try:
+                cap = p.cap
+            except:
+                cap = False
+            try:
                 prefix = p.prefix
             except AttributeError:
                 prefix = ""
@@ -111,6 +118,7 @@ class Module:
                         data_width=p.DATA_WIDTH,
                         prefix=prefix,
                         modport=modport,
+                        capitalize=cap,
                         )
             intfs.append(intf)
 

@@ -25,6 +25,7 @@ addrmap nmi2apb #(
     longint unsigned ADDR_WIDTH = 32
 
     ){
+    adapter;
 
     nmi_intf #(
         .INTF(intf_t'{name:"nmi_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"s_", modport:Modport::slave }),
