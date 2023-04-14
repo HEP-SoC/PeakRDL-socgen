@@ -1,5 +1,5 @@
 addrmap apb_interconnect #(
-    longint unsigned N_SLAVES = 4,
+    longint unsigned N_SLAVES = 1,
     longint unsigned DATA_WIDTH = 32,
     longint unsigned ADDR_WIDTH = 32,
 

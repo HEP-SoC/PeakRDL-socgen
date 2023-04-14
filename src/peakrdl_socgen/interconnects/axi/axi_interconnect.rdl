@@ -1,7 +1,7 @@
 addrmap axi_interconnect #(
     longint unsigned N_SLAVES = 2,
-    longint unsigned N_MASTERS = 3,
-    longint unsigned DATA_WIDTH = 64,
+    longint unsigned N_MASTERS = 1,
+    longint unsigned DATA_WIDTH = 32,
     longint unsigned ADDR_WIDTH = 32,
 
     longint unsigned SLAVE_ADDR[],

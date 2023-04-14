@@ -97,7 +97,7 @@ class Adapter(Module):
 
     def create_adapter_node(self):
         adapter_name = self.adapt_from.name.replace("_intf", "") + "2" + self.adapt_to.name.replace("_intf", "")
-        inst_name = adapter_name + str(self.__hash__())
+        inst_name = adapter_name + str(self.__hash__())[-3:]
         adapter = self.rdlc.elaborate(
                 top_def_name=adapter_name,
                 inst_name=inst_name,

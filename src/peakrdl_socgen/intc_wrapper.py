@@ -18,7 +18,7 @@ class IntcWrapper(Module):
             rdlc : RDLCompiler,
             subsystem_node : "Subsystem", # type: ignore
             ext_slv_intfs : List[Intf],
-            ext_master_ports : List[Intf],
+            ext_mst_intfs : List[Intf],
             ):
         self.rdlc = rdlc
         self.isIntcWrap = True
@@ -26,8 +26,7 @@ class IntcWrapper(Module):
         self.subsystem_node = subsystem_node
 
         self.ext_slv_intfs = ext_slv_intfs
-        self.ext_master_ports = ext_master_ports
-
+        self.ext_mst_intfs = ext_mst_intfs
         intc_node = self.create_intc_wrap_node()
         assert isinstance(intc_node, AddrmapNode)
         super().__init__(intc_node, self.rdlc)
@@ -54,16 +53,16 @@ class IntcWrapper(Module):
 
         intc_slave_ports = [intf for intf in self.intfsNoAdapter if intf.modport == IntfModport.SLAVE]
         intc_master_ports = [intf for intf in self.intfsNoAdapter if intf.modport == IntfModport.MASTER]
+        data_width, addr_width = self.getIntcWidths()
 
         for intf in self.intfsNeedAdapter:
-            intf.print()
             intc_intf = create_intf(
                     rdlc=self.rdlc,
                     parent_node=self.node,
                     intf_type=intf_type,
-                    addr_width=intf.addr_width, # TODO
-                    data_width=intf.data_width, 
-                    prefix=intf.name.replace("_intf", "") + "2" + intf_type.replace("_intf", "") + "_" + intf.sig_prefix + "_", 
+                    addr_width=addr_width, # TODO
+                    data_width=data_width, 
+                    prefix=intf_type.replace("_intf", "") + "2" +  intf.name.replace("_intf", "") + "_" + intf.sig_prefix + "_", 
                     modport=intf.modport,
                     )
             if intc_intf.modport == IntfModport.SLAVE:
@@ -121,11 +120,9 @@ class IntcWrapper(Module):
             for mst in fitting_masters:
                 if slv.split("2")[1] == mst.split("2")[0]:
                     adapter_paths.append([slv, mst])
-        print(adapter_paths)
 
         for cnt, adapter in enumerate(adapter_paths[0]): # IF MASTER TODO SLAVE
             if cnt == 0:
-                print("Adapter: ", adapter, cnt, len(adapter_paths[0]))
                 adapt_to = create_intf(
                         rdlc=self.rdlc,
                         parent_node=self.node,
@@ -135,10 +132,8 @@ class IntcWrapper(Module):
                         prefix="TODO_I_DONT_KNOW_",
                         modport=intf.modport
                         )
-                print(adapt_to.name)
                 self.adapters.append(Adapter(adapt_from=intc_intf, adapt_to=adapt_to, rdlc=self.rdlc))
             elif cnt == len(adapter_paths[0]) - 1:
-                print("Adapter: ", adapter, cnt, len(adapter_paths[0]))
                 adapt_from = create_intf(
                         rdlc=self.rdlc,
                         parent_node=self.node,
@@ -160,7 +155,6 @@ class IntcWrapper(Module):
 
         assert len(adapter_paths) > 0, f"Could not find appropriate adapter or combination for {intf.name} modport: {intf.modport} and {intc_intf.name}"
 
-        print("Adapter name: ", adapter_name)
 
         # if adapter_name not in available_adapters:
         #     print("Could not find, try to combine", adapter_name)
@@ -232,6 +226,10 @@ class IntcWrapper(Module):
         #
         # raise InvalidAdapter
 
+    def getIntcWidths(self) -> tuple[int, int]:
+        max_dataw = max([*self.ext_slv_intfs, *self.ext_mst_intfs], key=lambda intf: intf.data_width).data_width
+        max_addrw = max([*self.ext_slv_intfs, *self.ext_mst_intfs], key=lambda intf: intf.addr_width).addr_width
+        return max_dataw, max_addrw
 
     def determineIntc(self) -> tuple[str, str]:
         slave_intfs = self.getSlaveIntfs()
@@ -249,12 +247,12 @@ class IntcWrapper(Module):
 
     def create_intc_wrap_node(self):
         params = r"'{"
-        ports = [*self.ext_slv_intfs, *self.ext_master_ports]
+        ports = [*self.ext_slv_intfs, *self.ext_mst_intfs]
         for i, intf in enumerate(ports):
             modport = None
             if intf in self.ext_slv_intfs:
                 modport = IntfModport.SLAVE
-            elif intf in self.ext_master_ports:
+            elif intf in self.ext_mst_intfs:
                 modport = IntfModport.MASTER
             assert modport is not None
 
