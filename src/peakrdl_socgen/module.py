@@ -6,7 +6,8 @@ import math
 
 from systemrdl.rdltypes.array import ArrayPlaceholder
 
-from .intf import Intf, Signal, create_intf, IntfModport
+from .intf import Intf, create_intf, IntfModport
+from .signal import Signal
 
 class Module:
     def __init__(self,

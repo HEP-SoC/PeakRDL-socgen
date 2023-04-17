@@ -1,13 +1,13 @@
 from systemrdl import RDLCompiler
 from systemrdl.node import  AddrmapNode
-from typing import List, Tuple
-from systemrdl.rdltypes.array import ArrayPlaceholder
+from typing import List
 
 # from .bus import Bus, Signal, SignalType, BusRDL, create_bus, BusType
 from .module import Module
 from .intc import Intc
 from .adapter import Adapter
-from .intf import Intf, IntfModport, create_intf, Signal, get_intf_cap_param_str
+from .intf import Intf, IntfModport, create_intf, get_intf_cap_param_str
+from .signal import Signal
 
 class InvalidAdapter(Exception):
     "Adapter cannot be created from given interfaces"

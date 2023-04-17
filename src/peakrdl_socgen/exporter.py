@@ -1,14 +1,8 @@
-from typing import Optional, Dict, Any, Type, TYPE_CHECKING
-from systemrdl import Addrmap, RDLCompiler, RDLCompileError
-from systemrdl import RDLWalker, RDLListener
-from systemrdl.core.parameter import Parameter
-from systemrdl.node import  Node, RootNode, AddrmapNode, AddressableNode
-from systemrdl.rdltypes.user_struct import UserStruct, UserStructMeta
+from typing import  Dict, Any
+from systemrdl import  RDLCompiler, RDLWalker
+from systemrdl.node import  Node, RootNode
 from typing import List, Union
-from copy import deepcopy
 import os
-import sys
-import shutil
 import jinja2
 
 from .subsystem import Subsystem, SubsystemListener, getOrigTypeName
@@ -65,7 +59,6 @@ class SocExporter():
             nodes: 'Union[Node, List[Node]]',
             outdir: str, 
             intfs: 'List[str]',
-            list_files: bool=False,
             **kwargs: 'Dict[str, Any]') -> None:
 
         # if not a list
@@ -99,7 +92,6 @@ class SocExporter():
             out_file = os.path.join(outdir, subsys.getName() + ".v")
             with open(out_file, 'w') as f:
                 f.write(text)
-
 
         for subsys in subsystems:
             context = {

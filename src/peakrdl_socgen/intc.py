@@ -2,9 +2,11 @@ from systemrdl import RDLCompiler
 from systemrdl.node import AddrmapNode
 from systemrdl.rdltypes.array import ArrayPlaceholder
 from typing import List
+import math
 
 from .module import Module
-from .intf import Intf, Signal, IntfModport
+from .intf import Intf, IntfModport
+from .signal import Signal
 
 class IntcBase:
     def __init__(self, 
@@ -85,6 +87,9 @@ class Intc(Module):
 
         return new_intc # type: ignore
 
+    def round_up_to_pwr2(self, num):
+        return int(math.pow(2, math.ceil(math.log2(num))))
+
     def get_intc_mmap_type(self, intc_name : str): 
         dflt_intc = self.rdlc.elaborate(
                 top_def_name=intc_name,
@@ -112,7 +117,7 @@ class Intc(Module):
                 if p.param_type.element_type == int:
                     params['SLAVE_MASK'] = []
                     for c in reversed(self.subsystem_node.getSlaveNodes()):
-                        mask = self.fillOnesFromLeft(c.size, 32) # TODO width
+                        mask = self.fillOnesFromLeft(self.round_up_to_pwr2(c.size), 32) # TODO width
                         params['SLAVE_MASK'].append(mask)
 
         return params

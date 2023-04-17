@@ -12,6 +12,15 @@ enum SignalType {
     blank    = 7;
 };
 
+property output {
+    type = boolean;
+    component = signal;
+};
+property input {
+    type = boolean;
+    component = signal;
+};
+
 property signal_type {
     type = SignalType;
     component = signal;

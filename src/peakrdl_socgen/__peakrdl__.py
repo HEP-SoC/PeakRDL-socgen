@@ -43,7 +43,6 @@ class Exporter(ExporterSubcommandPlugin):
             soc.export(
                 nodes=top_node,
                 outdir=options.output,
-                list_files=options.list_files,
                 intfs=options.intfs,
             )
 

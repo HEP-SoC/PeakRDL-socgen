@@ -1,22 +1,11 @@
-from systemrdl import RDLCompiler, RDLWalker, RDLListener, node
-from systemrdl.node import Node, MemNode, RootNode, AddressableNode, RegNode, FieldNode, AddrmapNode
-from typing import List, Union
-import jinja2
-import os
-import math
-import copy
-from enum import Enum
+from systemrdl import RDLCompiler, RDLListener
+from systemrdl.node import Node, AddrmapNode
+from typing import List
 
-from systemrdl.core.parameter import Parameter
-from systemrdl.rdltypes.user_struct import UserStruct
-from systemrdl.rdltypes.user_enum import UserEnum
-
-from peakrdl_socgen import module
 from peakrdl_socgen.intc_wrapper import IntcWrapper
-from peakrdl_socgen.intf import create_intf
-
 from .module import Module
-from .intf import Intf, IntfModport, Signal
+from .intf import Intf
+from .signal import Signal
 
 
 def isSubsystem(node : Node ):
@@ -50,24 +39,34 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         super().__init__(node, rdlc)
 
         self.modules =  self.getModules() 
-
+        self.signals = self.inheritSignals()
 
         self.intc_wrap = IntcWrapper(rdlc, self, self.getStartpoints(), self.getEndpoints())
 
         self.modules.append(self.intc_wrap)
 
-    
+    def inheritSignals(self):
+        signals = []
+        for mod in self.modules:
+            for s in mod.signals:
+                if not (s.is_rst or s.is_clk):
+                    signals.append(Signal(
+                        node=s.node, 
+                        prefix=mod.node.inst_name + "_" + s.prefix,
+                        capitalize=s.capitalize
+                        ))
+        return self.signals + signals 
+
     def getModules(self):
-        # modules = []
-        # for node in self.getAddrmaps():
-        #     if node.get_property('subsystem'):
-        #         print(node.get_path())
-        #         modules.append(Subsystem(node, self.rdlc))
-        #     else:
-        #         modules.append(Module(node, self.rdlc))
-        #
-        # return modules
-        return [Module(node, self.rdlc) for node in self.getAddrmaps()]
+        modules = []
+        for node in self.getAddrmaps():
+            if node.get_property('subsystem'):
+                print(node.get_path())
+                modules.append(Subsystem(node, self.rdlc))
+            else:
+                modules.append(Module(node, self.rdlc))
+
+        return modules
 
     def getName(self):
         return self.getOrigTypeName()       

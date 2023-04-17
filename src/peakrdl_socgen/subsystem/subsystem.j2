@@ -1,6 +1,8 @@
 module {{ subsys.getName() }}(
-    input clk,
-    input rstn{% if subsys.intfs|length > 0 %}, {% endif %}
+{% for s in subsys.signals %}
+    {{ s.verilogType }} {{ s.name }}{% if (not loop.last) or (subsys.intfs|length > 0) %}, {% endif %}
+
+{% endfor %}
 
 {% for intf in subsys.intfs %}
     {% set last_bus = loop.last %}
@@ -13,7 +15,7 @@ module {{ subsys.getName() }}(
 {% endfor %}
 );
 
-{% for module in subsys.modules %} {# TODO add interconnects #}
+{% for module in subsys.modules %} 
 {% for s in module.signals %}
 {% if s.is_clk %}
     wire   {{ module.getSigVerilogName(s) }};
