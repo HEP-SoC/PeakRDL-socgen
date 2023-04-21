@@ -12,12 +12,12 @@ addrmap axi_interconnect #(
 
     axi_intf #(
         .INTF(intf_cap'{name:"axi_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"S_AXI_", modport:Modport::slave, cap:true }),
-        .N(N_MASTERS)
+        .N(N_SLAVES)
         )  slv_axi_;
 
     axi_intf #(
         .INTF(intf_cap'{name:"axi_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"M_AXI_", modport:Modport::master, cap:true }),
-        .N(N_SLAVES)
+        .N(N_MASTERS)
         )  mst_axi_;
 
     reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
