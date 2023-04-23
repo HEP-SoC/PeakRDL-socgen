@@ -70,7 +70,7 @@ class Intc(Module):
                 'DATA_WIDTH' : max(intc_params['data_w'], intc_params['data_w']),
                 'ADDR_WIDTH' : max(intc_params['addr_w'], intc_params['addr_w']),
                 }
-        if len(self.ext_slv_intfs) > 1:
+        if len(self.ext_mst_intfs) > 1:
             param_values['N_MASTERS'] = len(self.ext_mst_intfs)
 
         mmap_params = self.get_intc_mmap_type(intc_name)
@@ -91,6 +91,7 @@ class Intc(Module):
         return int(math.pow(2, math.ceil(math.log2(num))))
 
     def get_intc_mmap_type(self, intc_name : str): 
+        self.getSlaveNodes()
         dflt_intc = self.rdlc.elaborate(
                 top_def_name=intc_name,
                 inst_name="default_" + intc_name,
@@ -103,24 +104,27 @@ class Intc(Module):
             if p.name == "MEM_MAP" and isinstance(p.param_type, ArrayPlaceholder):
                 if p.param_type.element_type == int:
                     params['MEM_MAP'] = []
-                    for c in self.subsystem_node.getSlaveNodes():
+                    for c in self.getSlaveNodes():
                         params['MEM_MAP'].extend([c.absolute_address, c.absolute_address + c.size])
 
             # SLAVE_ADDR, SLAVE_MASK scheme
             if p.name == "SLAVE_ADDR" and isinstance(p.param_type, ArrayPlaceholder):
                 if p.param_type.element_type == int:
                     params['SLAVE_ADDR'] = []
-                    for c in reversed(self.subsystem_node.getSlaveNodes()):
+                    for c in reversed(self.getSlaveNodes()):
                         params['SLAVE_ADDR'].append(c.absolute_address)
 
             if p.name == "SLAVE_MASK" and isinstance(p.param_type, ArrayPlaceholder):
                 if p.param_type.element_type == int:
                     params['SLAVE_MASK'] = []
-                    for c in reversed(self.subsystem_node.getSlaveNodes()):
+                    for c in reversed(self.getSlaveNodes()):
                         mask = self.fillOnesFromLeft(self.round_up_to_pwr2(c.size), 32) # TODO width
                         params['SLAVE_MASK'].append(mask)
 
         return params
+
+    def getSlaveNodes(self):
+        return [intf.orig_intf.parent_node for intf  in self.ext_mst_intfs] # type:ignore
 
     def fillOnesFromLeft(self, num, width):
         ret = 0

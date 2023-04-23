@@ -144,10 +144,12 @@ module axi2axi_lite #(
 		output	wire	[2 : 0]			M_AXI_AWPROT,
 		output	wire				M_AXI_AWVALID,
 		input	wire				M_AXI_AWREADY,
+
 		output	wire [M_DATA_WIDTH-1:0]	M_AXI_WDATA,
 		output	wire [(M_DATA_WIDTH/8)-1:0] M_AXI_WSTRB,
 		output	wire				M_AXI_WVALID,
 		input	wire				M_AXI_WREADY,
+
 		input	wire	[1 : 0]			M_AXI_BRESP,
 		input	wire				M_AXI_BVALID,
 		output	wire				M_AXI_BREADY,

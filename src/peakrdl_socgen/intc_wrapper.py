@@ -1,6 +1,7 @@
+from jinja2 import ext
 from systemrdl import RDLCompiler
 from systemrdl.node import  AddrmapNode
-from typing import List
+from typing import List, Tuple
 
 # from .bus import Bus, Signal, SignalType, BusRDL, create_bus, BusType
 from .module import Module
@@ -19,6 +20,7 @@ class IntcWrapper(Module):
             subsystem_node : "Subsystem", # type: ignore
             ext_slv_intfs : List[Intf],
             ext_mst_intfs : List[Intf],
+            ext_connections : List[Tuple[Intf, Intf]],
             ):
         self.rdlc = rdlc
         self.isIntcWrap = True
@@ -30,6 +32,9 @@ class IntcWrapper(Module):
         intc_node = self.create_intc_wrap_node()
         assert isinstance(intc_node, AddrmapNode)
         super().__init__(intc_node, self.rdlc)
+
+        self.connections = self.createConnectionIntfs(ext_connections)
+        self.assignOriginalIntfs()
 
         self.adapters = []
         self.intc = self.create_intc()
@@ -47,18 +52,38 @@ class IntcWrapper(Module):
         _, intf_type = self.determineIntc()
         return [intf for intf in self.intfs if intf.name == intf_type]
 
+    def groupSignals(self, first : Intf, second : Intf):
+        conns = []
+        for s in first.signals:
+            other = second.findSignal(s.basename)
+            assert other is not None, f"Could not find signal {s.name} in {second.name}"
+            if s.miso:
+                conns.append((s, other))
+            else:
+                conns.append((other, s))
+        return conns
+
+    def checkIfInConnections(self, intf : Intf):
+        for conn in self.connections:
+            if intf in conn:
+                return True
+        return False
 
     def create_intc(self):
         _, intf_type = self.determineIntc()
 
         intc_slave_ports = [intf for intf in self.intfsNoAdapter if intf.modport == IntfModport.SLAVE]
+        intc_slave_ports = [slv for slv in intc_slave_ports if not self.checkIfInConnections(slv)]
         intc_master_ports = [intf for intf in self.intfsNoAdapter if intf.modport == IntfModport.MASTER]
+        intc_master_ports = [mst for mst in intc_master_ports if not self.checkIfInConnections(mst)]
+
         data_width, addr_width = self.getIntcWidths()
 
-        for intf in self.intfsNeedAdapter:
+        for intf in self.intfsNeedAdapter:      # TODO Connections that need adapters?
             intc_intf = create_intf(
                     rdlc=self.rdlc,
                     parent_node=self.node,
+                    orig_intf=intf.orig_intf,
                     intf_type=intf_type,
                     addr_width=addr_width, # TODO
                     data_width=data_width, 
@@ -89,9 +114,8 @@ class IntcWrapper(Module):
                     intfs.append(intf)
         return list(set(intfs)) # remove duplicates
 
-
     def createAdaptersOnPath(self, intf : Intf, intc_intf : Intf):
-        available_adapters = ["axi2axi_lite", "axi_lite2apb", "nmi2apb"] # TODO find it automatically
+        available_adapters = ["axi2axi_lite", "axi_lite2apb", "nmi2apb", "pulpif2axi_lite", "pulpif2axi"] # TODO find it automatically
         adapter_paths = []
 
         if intf.name == intc_intf.name:
@@ -282,6 +306,30 @@ class IntcWrapper(Module):
                 ).get_child_by_name(self.parent_node.inst_name + "_intc_wrap")
 
         return new_intc
+
+    def createConnectionIntfs(self, ext_connections):
+        assert self.node is not None, "Intc wrapper node not created yet"
+        connections = []
+        for first, second in ext_connections:
+            conn_ifs = (None, None)
+            for intf in self.intfs:
+                first_new_prefix = first.parent_node.inst_name + "_" + first.sig_prefix
+                second_new_prefix = second.parent_node.inst_name + "_" + second.sig_prefix
+                if first_new_prefix == intf.sig_prefix:
+                    conn_ifs = (intf, conn_ifs[1])
+                if second_new_prefix == intf.sig_prefix:
+                    conn_ifs = (conn_ifs[0], intf)
+
+            assert all(x is not None for x in conn_ifs), f"Could not find one of the connections: {first} = {conn_ifs[0]} | {second} = {conn_ifs[1]}"
+            assert conn_ifs[0].modport != conn_ifs[1].modport, f"Connection interfaces need to be slave and master {conn_ifs[0].sig_prefix}, {conn_ifs[1].sig_prefix}" # type: ignore
+            connections.append(conn_ifs)
+        return connections
+
+    def assignOriginalIntfs(self):
+        for intf in self.intfs:
+            for orig in [*self.ext_mst_intfs, *self.ext_slv_intfs]:
+                if orig.parent_node.inst_name + "_" + orig.sig_prefix == intf.sig_prefix:
+                    intf.orig_intf = orig
 
     def getOrigTypeName(self) -> str:
         return self.node.inst_name

@@ -1,0 +1,56 @@
+digraph {{ subsys.node.inst_name }} {
+    graph [rankdir = LR];
+    node[shape=Mrecord];
+
+    {% for mod in subsys.dotGraphGetModules() %}
+        {{ mod.node.inst_name }}[height=1, label="{ { {% if false %}{% endif %}
+        {% for intf in mod.getSlaveIntfs() -%}
+            <{{ intf.sig_prefix }}>{{ intf.sig_prefix }}{% if not loop.last %} | {% endif %}
+        {%- endfor -%}
+        } |{{ mod.node.inst_name }} | {
+        {%- for intf in mod.getMasterIntfs() -%}
+            <{{intf.sig_prefix}}>{{ intf.sig_prefix }}{% if not loop.last %} | {% endif %}
+        {%- endfor -%} } } "];
+    {% endfor %}
+
+    subgraph cluster_{{ subsys.intc_wrap.node.inst_name }}{
+        node [style=filled];
+        label = "{{ subsys.intc_wrap.node.inst_name }}";
+        color=blue;
+    {% for mod in subsys.intc_wrap.adapters + [subsys.intc_wrap.intc] %}
+        {{ mod.node.inst_name }}[height=1, label="{ { {% if false %}{% endif %}
+        {% for intf in mod.getSlaveIntfs() -%}
+            <{{ intf.sig_prefix }}>{{ intf.sig_prefix }}{% if not loop.last %} | {% endif %}
+        {%- endfor -%}
+        } |{{ mod.node.inst_name }} | {
+        {%- for intf in mod.getMasterIntfs() -%}
+            <{{intf.sig_prefix}}>{{ intf.sig_prefix }}{% if not loop.last %} | {% endif %}
+        {%- endfor -%} } } "];
+    {% endfor %}
+        {# {% for adapter in subsys.intc_wrap.adapters %} #}
+        {#     {% for intf in adapter.intfs %} #}
+        {#         {{ intf.orig_intf.parent_node.inst_name }}:{{ intf.orig_intf.sig_prefix }} -> {{ intf.parent_node.inst_name }}:{{ intf.sig_prefix }}; #}
+        {#     {% endfor %} #}
+            {# {% set slave, master = adapter.getSlaveIntfs()[0], adapter.getMasterIntfs()[0] %} #}
+            {# {{ slave.parent_node.inst_name }}:{{ slave.sig_prefix }} -> {{ master.parent_node.inst_name }}:{{ master.sig_prefix }}; #}
+        {# {% endfor %} #}
+    }
+
+
+    {% for conn in subsys.connections %}
+        {% set first, second = subsys.getConnection(conn[0], conn[1]) %}
+        {{ first.parent_node.inst_name }}:{{ first.sig_prefix }} -> {{ second.parent_node.inst_name }}:{{ second.sig_prefix }};
+    {% endfor %}
+
+    {% for intf in subsys.intc_wrap.intfsNoAdapter %}
+        {% if intf.isMaster and not subsys.intc_wrap.checkIfInConnections(intf) %}
+        {{ subsys.intc_wrap.intc.node.inst_name }}:{{ subsys.intc_wrap.intc.getMasterIntfs()[0].sig_prefix }} -> {{ intf.orig_intf.parent_node.inst_name }}:{{ intf.orig_intf.sig_prefix }};
+        {% elif intf.isSlave and not subsys.intc_wrap.checkIfInConnections(intf) %}
+        {{ intf.orig_intf.parent_node.inst_name }}:{{ intf.orig_intf.sig_prefix }} -> {{ subsys.intc_wrap.intc.node.inst_name }}:{{ subsys.intc_wrap.intc.getSlaveIntfs()[0].sig_prefix }};
+        {% endif %}
+    {% endfor %}
+
+    {% for intf in subsys.intc_wrap.intfNeedAdapter %}
+    {% endfor %}
+
+}

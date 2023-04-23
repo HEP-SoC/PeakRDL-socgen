@@ -15,6 +15,7 @@ class Intf:
             parent_node : AddrmapNode,
             rdlc : RDLCompiler,
             sig_prefix : str = "",
+            orig_intf : "Intf|None" = None,
             modport : IntfModport = IntfModport.SLAVE,
             capitalize : bool = False,
             N : int=1,
@@ -32,9 +33,26 @@ class Intf:
         self.data_width = prop.DATA_WIDTH
         self.modport = modport
         self.parent_node = parent_node
+        self.__orig_intf = orig_intf
         self.N = N
 
         self.signals = self.getSignals(self.node, self.sig_prefix)
+
+    @property
+    def orig_intf(self):
+        return self if self.__orig_intf is None else self.__orig_intf
+
+    @orig_intf.setter
+    def orig_intf(self, value):
+        self.__orig_intf = value
+
+    @property
+    def isMaster(self):
+        return self.modport == IntfModport.MASTER
+
+    @property
+    def isSlave(self):
+        return self.modport == IntfModport.SLAVE
 
     def getSignals(self, intf_node : AddrmapNode, prefix : str = ""):
         signals = []
@@ -160,6 +178,7 @@ def create_intf(
         prefix : str,
         modport : IntfModport,
         capitalize : bool = False,
+        orig_intf  : Intf|None = None,
         N : int=1,
         ):
     
@@ -176,7 +195,15 @@ def create_intf(
 
     assert(isinstance(new_intf, AddrmapNode))
 
-    return Intf(new_intf, parent_node, rdlc, prefix, list(IntfModport)[modport.value], capitalize, N)
+    return Intf(
+            intf_node=new_intf,
+            parent_node=parent_node,
+            rdlc=rdlc,
+            sig_prefix=prefix,
+            modport=list(IntfModport)[modport.value],
+            capitalize=capitalize,
+            N=N,
+            orig_intf=orig_intf)
 
 def get_intf_t_param_str(
         intf_type : str,

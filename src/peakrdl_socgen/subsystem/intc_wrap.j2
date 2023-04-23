@@ -139,5 +139,12 @@ module {{ intcw.getOrigTypeName() }}(
 
 {% endfor %}
 
+// Simple connections
+{% for first, second in intcw.connections %}
+    {% for lhs, rhs in intcw.groupSignals(first, second) %}
+        assign {{ lhs.name }} = {{ rhs.name }};
+    {% endfor %}
+{% endfor %}
+
 endmodule
 

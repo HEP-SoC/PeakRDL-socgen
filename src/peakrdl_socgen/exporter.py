@@ -103,6 +103,12 @@ class SocExporter():
             with open(out_file, 'w') as f:
                 f.write(text)
 
+        text = self.process_dot_template({'subsys': subsystems[0]})
+
+        out_file = os.path.join(outdir, subsystems[0].node.inst_name + ".dot")
+        with open(out_file, 'w') as f:
+            f.write(text)
+
     def process_template(self, context : dict, template : str) -> str:
 
         env = jinja2.Environment(
@@ -116,5 +122,20 @@ class SocExporter():
             })
 
         res = env.get_template(template).render(context)
+        return res
+
+    def process_dot_template(self, context : dict) -> str:
+
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader('%s/dot/' % os.path.dirname(__file__)),
+            trim_blocks=True,
+            lstrip_blocks=True)
+
+        env.filters.update({
+            'zip' : zip,
+            'int' : int,
+            })
+
+        res = env.get_template('dot.j2').render(context)
         return res
 

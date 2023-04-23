@@ -4,7 +4,7 @@ from typing import List
 
 from peakrdl_socgen.intc_wrapper import IntcWrapper
 from .module import Module
-from .intf import Intf
+from .intf import Intf, IntfModport
 from .signal import Signal
 
 
@@ -40,8 +40,15 @@ class Subsystem(Module): # TODO is module and subsystem the same?
 
         self.modules =  self.getModules() 
         self.signals = self.inheritSignals()
+        self.connections = self.getConnections()
 
-        self.intc_wrap = IntcWrapper(rdlc, self, self.getStartpoints(), self.getEndpoints())
+        self.intc_wrap = IntcWrapper(
+                rdlc=rdlc,
+                subsystem_node=self,
+                ext_slv_intfs=self.getStartpoints(),
+                ext_mst_intfs=self.getEndpoints(),
+                ext_connections=self.connections,
+                )
 
         self.modules.append(self.intc_wrap)
 
@@ -56,6 +63,52 @@ class Subsystem(Module): # TODO is module and subsystem the same?
                         capitalize=s.capitalize
                         ))
         return self.signals + signals 
+
+    def getConnection(self, first : Intf, second : Intf):
+        if first.parent_node == self.node and second.parent_node == self.node:
+            assert first.modport != second.modport, f"If both intfs are subsystem port, they need to be different modport"
+            if first.modport == IntfModport.SLAVE:
+                return (first, second)
+            else:
+                return (second, first)
+
+        if first.parent_node == self.node or second.parent_node == self.node: # But not both
+            assert first.modport == second.modport, f"If one intf is subsystem port, and the other is module port, they need to be the same modport"
+            if first.modport == IntfModport.SLAVE:
+                return (first, second)
+            else:
+                return (second, first)
+
+        if first.parent_node != self.node and second.parent_node != self.node:
+            assert first.modport != second.modport, f"Intf modports must be different to connect them"
+            if first.modport == IntfModport.MASTER:
+                return (first, second)
+            else:
+                return (second, first)
+
+        assert False, "Error reached end of this function"
+
+    def getConnections(self):
+        conn_p = self.node.get_property("connections", default = [])
+        assert len(conn_p) % 2 == 0, f"Connections need to be in pair, got {conn_p}"
+
+        connections = []
+        for first, second in zip(conn_p[::2], conn_p[1::2]):
+            conn_ifs = (None, None)
+            for i in self.getChildIntfs():
+                node_rel = i.parent_node.get_path().replace(self.node.get_path(), "")
+                node_rel = node_rel[1:] if node_rel.startswith('.') else node_rel
+
+                if node_rel + "." + i.sig_prefix == first:
+                    conn_ifs = (i, conn_ifs[1])
+                if node_rel + "." + i.sig_prefix == second:
+                    conn_ifs = (conn_ifs[0], i)
+
+            assert all(x is not None for x in conn_ifs), f"Could not find one of the connections: {first} = {conn_ifs[0]} | {second} = {conn_ifs[1]}"
+            assert conn_ifs[0].modport != conn_ifs[1].modport, f"Connection interfaces need to be slave and master {conn_ifs[0].sig_prefix}, {conn_ifs[1].sig_prefix}" # type: ignore  #  TODO slave to slave allowed if one of the intfs is port of subsystem ??? NOT needed checked in intc_wrapper createConnectionIntfs????
+            connections.append(conn_ifs)
+
+        return connections
 
     def getModules(self):
         modules = []
@@ -83,4 +136,11 @@ class Subsystem(Module): # TODO is module and subsystem the same?
 
         return startpoints
 
+    def getChildIntfs(self):
+        return [intf for module in self.modules for intf in module.intfs]
+
+    def dotGraphGetModules(self):
+        modules = [mod for mod in self.modules if not isinstance(mod, IntcWrapper) and not isinstance(mod, Subsystem)]
+        # wrap_modules = [mod for mod in self.intc_wrap.adapters ] + [self.intc_wrap.intc]
+        return modules #+ wrap_modules
 

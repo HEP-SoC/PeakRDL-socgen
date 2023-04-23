@@ -27,6 +27,8 @@ class Adapter(Module):
 
         super().__init__(self.node, self.rdlc) # type: ignore
 
+        # self.assignOriginalIntfs()
+
         # for intf in self.intfs:
         #     intf.print()
 
@@ -104,6 +106,21 @@ class Adapter(Module):
                 ).get_child_by_name(inst_name)
 
         return adapter
+
+    # def assignOriginalIntfs(self): # TODO merge with intc_wrapper
+    #     print("------------------- Assigning original interface for ", self.node.inst_name)
+    #     self.ext_ports[0].print()
+    #     print(self.ext_ports[0].parent_node.inst_name)
+    #     self.ext_ports[0].orig_intf.print()
+        # for intf in self.intfs:
+        #     intf.print()
+        #     for orig in [*self.ext_ports]:
+        #         print("==========")
+        #         print(orig.orig_intf.parent_node.inst_name + "_" + orig.orig_intf.sig_prefix)
+        #         print(intf.orig_intf.sig_prefix)
+        #         if orig.parent_node.inst_name + "_" + orig.sig_prefix == intf.orig_intf.sig_prefix:
+        #             print("FOUND")
+        #             intf.orig_intf = orig
     
     # def findFittingAdapter(self, intf : Intf, intc : "IntcBase"):
     #     available_adapters = ["axi2axi_lite", "axi_lite2apb", "nmi2apb"] # TODO find it automatically

@@ -46,6 +46,11 @@ property adapter {
     component = addrmap;
 };
 
+property connections {
+    type = string[];
+    component = addrmap;
+};
+
 
 // desc = "Slave select signal, should not be shared between slaves";
 property ss {
