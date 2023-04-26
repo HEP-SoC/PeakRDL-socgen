@@ -33,7 +33,7 @@ module apb_interconnect #(
     always @(*) begin : match_address
         m_psel   = {N_SLAVES{1'b0}};
         // generate the select signal based on the supplied address
-        for (j = 0; j < N_SLAVES; j++) begin
+        for (j = 0; j < N_SLAVES; j = j + 1) begin
             m_psel[j]  =  s_psel && (s_paddr >= MEM_MAP[(N_SLAVES*2-2*j)  *ADDR_WIDTH-1 -: ADDR_WIDTH] &&
                                      s_paddr <= MEM_MAP[(N_SLAVES*2-1-2*j)*ADDR_WIDTH-1 -: ADDR_WIDTH]);
         end

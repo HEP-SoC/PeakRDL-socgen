@@ -1,4 +1,11 @@
-module {{ subsys.getName() }}(
+{% set subsys_params = subsys.getHdlParameters() %}
+module {{ subsys.getName() }} {% if subsys_params|length > 0 %} #(
+{% for param in subsys_params %}
+    parameter {{ param['name'] }} = {{ param['value'] }}{% if not loop.last%}, {% endif %}
+
+{% endfor %}
+){% endif %}
+(
 {% for s in subsys.signals %}
     {{ s.verilogType }} {{ s.name }}{% if (not loop.last) or (subsys.intfs|length > 0) %}, {% endif %}
 
@@ -24,7 +31,7 @@ module {{ subsys.getName() }}(
 {% if s.is_rst %}
     {% set rst_sig = subsys.getClkOrRst(s) %}
     wire   {{ module.getSigVerilogName(s) }};
-    assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh %}!{% endif %}{{ rst_sig.name }}; 
+    assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh != rst_sig.activehigh %}!{% endif %}{{ rst_sig.name }}; 
 {% endif %}
 {% endfor %}
 

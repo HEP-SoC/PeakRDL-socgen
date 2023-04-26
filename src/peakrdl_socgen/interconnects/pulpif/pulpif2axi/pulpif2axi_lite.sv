@@ -1,3 +1,5 @@
+`include "typedef.svh"
+
 module pulpif2axi_lite 
 #(
     parameter ADDR_WIDTH = 32,

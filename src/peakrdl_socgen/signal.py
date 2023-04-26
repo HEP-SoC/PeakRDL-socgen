@@ -52,12 +52,12 @@ class Signal:
         if self.width > 1:
             w = f"[{self.width-1}:0]"
         if self.input:
-            return "input " + w
+            return "input wire " + w
         elif self.output:
-            return "output " + w
+            return "output wire " + w
 
         elif self.is_clk or self.is_rst:
-            return "input " + w
+            return "input wire " + w
 
         return "None TODO intf.py, verilogType()"
 

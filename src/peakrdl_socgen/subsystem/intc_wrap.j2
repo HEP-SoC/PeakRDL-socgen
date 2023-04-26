@@ -1,6 +1,6 @@
 module {{ intcw.getOrigTypeName() }}(
 {% for s in intcw.signals %} {# TODO DIRECTION #}
-    input {{ s.name }},  
+    {{ s.verilogType }} {{ s.name }},  
 {% endfor %}
 
 {% for intf in intcw.intfs %}
@@ -24,7 +24,7 @@ module {{ intcw.getOrigTypeName() }}(
 {% if s.is_rst %}
     {% set rst_sig = intcw.getClkOrRst(s) %}
     wire   {{ module.getSigVerilogName(s) }};
-    assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh %}!{% endif %}{{ rst_sig.name }}; 
+    assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh != rst_sig.activehigh %}!{% endif %}{{ rst_sig.name }}; 
 {% endif %}
 {% endfor %}
 

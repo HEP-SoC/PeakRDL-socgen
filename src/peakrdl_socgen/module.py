@@ -64,11 +64,13 @@ class Module:
         for cnt, param in enumerate(params):
             if isinstance(param.param_type, ArrayPlaceholder) and param.param_type.element_type == int:
                 param_tmp = {'name': param.name, 'value': self.paramIntArrayToStr(param.get_value())}
-                hw_params.append(param_tmp)
+            elif param.param_type == str:
+                param_tmp = {'name' : param.name, 'value' : '""' if param.get_value() == "" else param.get_value()}
             else:
                 param_tmp = {'name': param.name, 'value': param.get_value()}
-                hw_params.append(param_tmp)
+            hw_params.append(param_tmp)
 
+        print(hw_params)
         return hw_params
         # return [param for param in self.node.inst.parameters if self.isHwParam(param)]
 
@@ -86,6 +88,12 @@ class Module:
         return param
 
     def isHwParam(self, param : Parameter):
+        print(f" {self.node.inst_name}", param.name, param, param.param_type, param.get_value())
+        # if param.param_type == str and param.name == "INIT_FILE":
+        if param.param_type == str and (param.name == "INIT_FILE" or param.name == "FIRMWARE_TEXT_FILE" or param.name == "FIRMWARE_DATA_FILE" ): # TODO
+        # if param.param_type == str:
+            return True
+
         return isinstance(param.get_value(), int) or \
                (isinstance(param.param_type, ArrayPlaceholder) and param.param_type.element_type == int)
 

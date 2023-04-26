@@ -72,14 +72,14 @@ class Intf:
 
         if sig.miso and not sig.mosi:
             if self.modport == IntfModport.SLAVE:
-                return "output"
+                return "output wire"
             elif self.modport == IntfModport.MASTER:
-                return "input"
+                return "input wire"
         elif sig.mosi and not sig.miso:
             if self.modport == IntfModport.SLAVE:
-                return "input"
+                return "input wire"
             elif self.modport == IntfModport.MASTER:
-                return "output"
+                return "output wire"
 
         return "ERROR BUG FOUND"
 
