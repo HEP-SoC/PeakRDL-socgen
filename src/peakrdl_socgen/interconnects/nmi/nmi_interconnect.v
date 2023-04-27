@@ -2,10 +2,9 @@ module nmi_interconnect #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
 
-    parameter N_SLAVES  = 3,
-    parameter N_MASTERS  = 1,
+    parameter N_MST_PORTS  = 3,
 
-    parameter [N_SLAVES*2*ADDR_WIDTH-1:0] MEM_MAP = {32'h1111_0000, 32'h1111_1FFF, 32'h2222_1000, 32'h2222_9FFF, 32'h3433_3000, 32'h3343_9FFF},
+    parameter [N_MST_PORTS*2*ADDR_WIDTH-1:0] MEM_MAP = {32'h1111_0000, 32'h1111_1FFF, 32'h2222_1000, 32'h2222_9FFF, 32'h3433_3000, 32'h3343_9FFF},
 
     parameter WSTRB_WIDTH = (DATA_WIDTH-1)/8+1 // 4 bits for 32 data
 
@@ -18,14 +17,14 @@ module nmi_interconnect #(
     input      [WSTRB_WIDTH-1:0] s_nmi_wstrb,
     output reg     [DATA_WIDTH-1:0]  s_nmi_rdata,
 
-    output reg  [N_SLAVES-1:0] m_nmi_valid,
+    output reg  [N_MST_PORTS-1:0] m_nmi_valid,
     output      m_nmi_instr,
-    input       [N_SLAVES-1:0] m_nmi_ready,
+    input       [N_MST_PORTS-1:0] m_nmi_ready,
 
     output      [ADDR_WIDTH-1:0]  m_nmi_addr,
     output      [DATA_WIDTH-1:0]  m_nmi_wdata,
     output      [WSTRB_WIDTH-1:0] m_nmi_wstrb,
-    input       [N_SLAVES*DATA_WIDTH-1:0]  m_nmi_rdata
+    input       [N_MST_PORTS*DATA_WIDTH-1:0]  m_nmi_rdata
 
     
     );
@@ -40,10 +39,10 @@ module nmi_interconnect #(
         s_nmi_rdata = {(DATA_WIDTH){1'b0}};
         s_nmi_ready = 1'b1;
         s_nmi_rdata = {(DATA_WIDTH/16){16'hC0DE}};
-        for(i=0; i<N_SLAVES; i=i+1) begin
+        for(i=0; i<N_MST_PORTS; i=i+1) begin
             m_nmi_valid[i] = 1'b0;
-            if ( s_nmi_addr >= MEM_MAP[(N_SLAVES*2-2*i)  *ADDR_WIDTH-1 -: ADDR_WIDTH] &&
-                    s_nmi_addr <= MEM_MAP[(N_SLAVES*2-1-2*i)*ADDR_WIDTH-1 -: ADDR_WIDTH]) begin
+            if ( s_nmi_addr >= MEM_MAP[(N_MST_PORTS*2-2*i)  *ADDR_WIDTH-1 -: ADDR_WIDTH] &&
+                    s_nmi_addr <= MEM_MAP[(N_MST_PORTS*2-1-2*i)*ADDR_WIDTH-1 -: ADDR_WIDTH]) begin
                     s_nmi_rdata = m_nmi_rdata[(i+1)*DATA_WIDTH-1 -: DATA_WIDTH];
                     m_nmi_valid[i] = s_nmi_valid;
                     s_nmi_ready = m_nmi_ready[i];

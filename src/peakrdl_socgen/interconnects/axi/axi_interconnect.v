@@ -4,7 +4,7 @@
 // {{{
 // Project:	WB2AXIPSP: bus bridges and other odds and ends
 //
-// Purpose:	Create a full crossbar between N_SLAVES AXI sources (masters), and N_MASTERS 
+// Purpose:	Create a full crossbar between N_SLV_PORTS AXI sources (masters), and N_MST_PORTS 
 //		AXI slaves.  Every master can talk to any slave, provided it
 //	isn't already busy.
 // {{{
@@ -28,7 +28,7 @@
 //	interest.  Until that time, in order for a second master to access
 //	a given slave, the first master must receive all of its acknowledgments.
 //
-// Usage:	To use, you must first set N_SLAVES and N_MASTERS to the number of masters
+// Usage:	To use, you must first set N_SLV_PORTS and N_MST_PORTS to the number of masters
 //	and the number of slaves you wish to connect to.  You then need to
 //	adjust the addresses of the slaves, found SLAVE_ADDR array.  Those
 //	bits that are relevant in SLAVE_ADDR to then also be set in SLAVE_MASK.
@@ -107,12 +107,12 @@ module	axi_interconnect #(
 		parameter integer ADDR_WIDTH = 32,
 		parameter integer C_AXI_ID_WIDTH = 2,
 		//
-		// N_SLAVES is the number of masters driving the incoming slave chnls
-		parameter	N_SLAVES = 4,
+		// N_SLV_PORTS is the number of masters driving the incoming slave chnls
+		parameter	N_SLV_PORTS = 4,
 		//
-		// N_MASTERS is the number of slaves connected to the crossbar, driven
+		// N_MST_PORTS is the number of slaves connected to the crossbar, driven
 		// by the master channels output from this IP.
-		parameter	N_MASTERS = 8,
+		parameter	N_MST_PORTS = 8,
 		//
 		// SLAVE_ADDR is an array of addresses, describing each of
 		// {{{
@@ -130,8 +130,8 @@ module	axi_interconnect #(
 		//
 		// NOTE: This is only a nominal address set.  I expect that
 		// any design using the crossbar will need to adjust both
-		// SLAVE_ADDR and SLAVE_MASK, if not also N_SLAVES and N_MASTERS.
-		parameter	[N_MASTERS*ADDR_WIDTH-1:0]	SLAVE_ADDR = {
+		// SLAVE_ADDR and SLAVE_MASK, if not also N_SLV_PORTS and N_MST_PORTS.
+		parameter	[N_MST_PORTS*ADDR_WIDTH-1:0]	SLAVE_ADDR = {
 			3'b111,  {(ADDR_WIDTH-3){1'b0}},
 			3'b110,  {(ADDR_WIDTH-3){1'b0}},
 			3'b101,  {(ADDR_WIDTH-3){1'b0}},
@@ -150,7 +150,7 @@ module	axi_interconnect #(
 		//
 		// NOTE: This value should be overridden by any implementation.
 		// Verilator lint_off WIDTH
-		parameter	[N_MASTERS*ADDR_WIDTH-1:0]	SLAVE_MASK = {
+		parameter	[N_MST_PORTS*ADDR_WIDTH-1:0]	SLAVE_MASK = {
 			3'b111,  {(ADDR_WIDTH-3){1'b0}},
 			3'b111,  {(ADDR_WIDTH-3){1'b0}},
 			3'b111,  {(ADDR_WIDTH-3){1'b0}},
@@ -201,97 +201,97 @@ module	axi_interconnect #(
 		input	wire	S_AXI_ARESETN,
 		// Write slave channels from the controlling AXI masters
 		// {{{
-		input	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]		S_AXI_AWID,
-		input	wire	[N_SLAVES*ADDR_WIDTH-1:0]	S_AXI_AWADDR,
-		input	wire	[N_SLAVES*8-1:0]			S_AXI_AWLEN,
-		input	wire	[N_SLAVES*3-1:0]			S_AXI_AWSIZE,
-		input	wire	[N_SLAVES*2-1:0]			S_AXI_AWBURST,
-		input	wire	[N_SLAVES-1:0]			    S_AXI_AWLOCK,
-		input	wire	[N_SLAVES*4-1:0]			S_AXI_AWCACHE,
-		input	wire	[N_SLAVES*3-1:0]			S_AXI_AWPROT,
-		input	wire	[N_SLAVES*4-1:0]			S_AXI_AWQOS,
-		input	wire	[N_SLAVES-1:0]			    S_AXI_AWVALID,
-		output	wire	[N_SLAVES-1:0]			    S_AXI_AWREADY,
+		input	wire	[N_SLV_PORTS*C_AXI_ID_WIDTH-1:0]		S_AXI_AWID,
+		input	wire	[N_SLV_PORTS*ADDR_WIDTH-1:0]	S_AXI_AWADDR,
+		input	wire	[N_SLV_PORTS*8-1:0]			S_AXI_AWLEN,
+		input	wire	[N_SLV_PORTS*3-1:0]			S_AXI_AWSIZE,
+		input	wire	[N_SLV_PORTS*2-1:0]			S_AXI_AWBURST,
+		input	wire	[N_SLV_PORTS-1:0]			    S_AXI_AWLOCK,
+		input	wire	[N_SLV_PORTS*4-1:0]			S_AXI_AWCACHE,
+		input	wire	[N_SLV_PORTS*3-1:0]			S_AXI_AWPROT,
+		input	wire	[N_SLV_PORTS*4-1:0]			S_AXI_AWQOS,
+		input	wire	[N_SLV_PORTS-1:0]			    S_AXI_AWVALID,
+		output	wire	[N_SLV_PORTS-1:0]			    S_AXI_AWREADY,
 		//
-		input	wire	[N_SLAVES*DATA_WIDTH-1:0]  	S_AXI_WDATA,
-		input	wire	[N_SLAVES*DATA_WIDTH/8-1:0]	S_AXI_WSTRB,
-		input	wire	[N_SLAVES-1:0]			        S_AXI_WLAST,
-		input	wire	[N_SLAVES-1:0]			        S_AXI_WVALID,
-		output	wire	[N_SLAVES-1:0]			        S_AXI_WREADY,
+		input	wire	[N_SLV_PORTS*DATA_WIDTH-1:0]  	S_AXI_WDATA,
+		input	wire	[N_SLV_PORTS*DATA_WIDTH/8-1:0]	S_AXI_WSTRB,
+		input	wire	[N_SLV_PORTS-1:0]			        S_AXI_WLAST,
+		input	wire	[N_SLV_PORTS-1:0]			        S_AXI_WVALID,
+		output	wire	[N_SLV_PORTS-1:0]			        S_AXI_WREADY,
 		//
-		output	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]	S_AXI_BID,
-		output	wire	[N_SLAVES*2-1:0]			    S_AXI_BRESP,
-		output	wire	[N_SLAVES-1:0]			        S_AXI_BVALID,
-		input	wire	[N_SLAVES-1:0]			        S_AXI_BREADY,
+		output	wire	[N_SLV_PORTS*C_AXI_ID_WIDTH-1:0]	S_AXI_BID,
+		output	wire	[N_SLV_PORTS*2-1:0]			    S_AXI_BRESP,
+		output	wire	[N_SLV_PORTS-1:0]			        S_AXI_BVALID,
+		input	wire	[N_SLV_PORTS-1:0]			        S_AXI_BREADY,
 		// }}}
 		// Read slave channels from the controlling AXI masters
 		// {{{
-		input	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]		S_AXI_ARID,
-		input	wire	[N_SLAVES*ADDR_WIDTH-1:0]	S_AXI_ARADDR,
-		input	wire	[N_SLAVES*8-1:0]			S_AXI_ARLEN,
-		input	wire	[N_SLAVES*3-1:0]			S_AXI_ARSIZE,
-		input	wire	[N_SLAVES*2-1:0]			S_AXI_ARBURST,
-		input	wire	[N_SLAVES-1:0]			S_AXI_ARLOCK,
-		input	wire	[N_SLAVES*4-1:0]			S_AXI_ARCACHE,
-		input	wire	[N_SLAVES*3-1:0]			S_AXI_ARPROT,
-		input	wire	[N_SLAVES*4-1:0]			S_AXI_ARQOS,
-		input	wire	[N_SLAVES-1:0]			S_AXI_ARVALID,
-		output	wire	[N_SLAVES-1:0]			S_AXI_ARREADY,
+		input	wire	[N_SLV_PORTS*C_AXI_ID_WIDTH-1:0]		S_AXI_ARID,
+		input	wire	[N_SLV_PORTS*ADDR_WIDTH-1:0]	S_AXI_ARADDR,
+		input	wire	[N_SLV_PORTS*8-1:0]			S_AXI_ARLEN,
+		input	wire	[N_SLV_PORTS*3-1:0]			S_AXI_ARSIZE,
+		input	wire	[N_SLV_PORTS*2-1:0]			S_AXI_ARBURST,
+		input	wire	[N_SLV_PORTS-1:0]			S_AXI_ARLOCK,
+		input	wire	[N_SLV_PORTS*4-1:0]			S_AXI_ARCACHE,
+		input	wire	[N_SLV_PORTS*3-1:0]			S_AXI_ARPROT,
+		input	wire	[N_SLV_PORTS*4-1:0]			S_AXI_ARQOS,
+		input	wire	[N_SLV_PORTS-1:0]			S_AXI_ARVALID,
+		output	wire	[N_SLV_PORTS-1:0]			S_AXI_ARREADY,
 		//
-		output	wire	[N_SLAVES*C_AXI_ID_WIDTH-1:0]		S_AXI_RID,
-		output	wire	[N_SLAVES*DATA_WIDTH-1:0]	S_AXI_RDATA,
-		output	wire	[N_SLAVES*2-1:0]			S_AXI_RRESP,
-		output	wire	[N_SLAVES-1:0]			S_AXI_RLAST,
-		output	wire	[N_SLAVES-1:0]			S_AXI_RVALID,
-		input	wire	[N_SLAVES-1:0]			S_AXI_RREADY,
+		output	wire	[N_SLV_PORTS*C_AXI_ID_WIDTH-1:0]		S_AXI_RID,
+		output	wire	[N_SLV_PORTS*DATA_WIDTH-1:0]	S_AXI_RDATA,
+		output	wire	[N_SLV_PORTS*2-1:0]			S_AXI_RRESP,
+		output	wire	[N_SLV_PORTS-1:0]			S_AXI_RLAST,
+		output	wire	[N_SLV_PORTS-1:0]			S_AXI_RVALID,
+		input	wire	[N_SLV_PORTS-1:0]			S_AXI_RREADY,
 		// }}}
 		// Write channel master outputs to the connected AXI slaves
 		// {{{
-		output	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		M_AXI_AWID,
-		output	wire	[N_MASTERS*ADDR_WIDTH-1:0]	M_AXI_AWADDR,
-		output	wire	[N_MASTERS*8-1:0]			M_AXI_AWLEN,
-		output	wire	[N_MASTERS*3-1:0]			M_AXI_AWSIZE,
-		output	wire	[N_MASTERS*2-1:0]			M_AXI_AWBURST,
-		output	wire	[N_MASTERS-1:0]			M_AXI_AWLOCK,
-		output	wire	[N_MASTERS*4-1:0]			M_AXI_AWCACHE,
-		output	wire	[N_MASTERS*3-1:0]			M_AXI_AWPROT,
-		output	wire	[N_MASTERS*4-1:0]			M_AXI_AWQOS,
-		output	wire	[N_MASTERS-1:0]			M_AXI_AWVALID,
-		input	wire	[N_MASTERS-1:0]			M_AXI_AWREADY,
+		output	wire	[N_MST_PORTS*C_AXI_ID_WIDTH-1:0]		M_AXI_AWID,
+		output	wire	[N_MST_PORTS*ADDR_WIDTH-1:0]	M_AXI_AWADDR,
+		output	wire	[N_MST_PORTS*8-1:0]			M_AXI_AWLEN,
+		output	wire	[N_MST_PORTS*3-1:0]			M_AXI_AWSIZE,
+		output	wire	[N_MST_PORTS*2-1:0]			M_AXI_AWBURST,
+		output	wire	[N_MST_PORTS-1:0]			M_AXI_AWLOCK,
+		output	wire	[N_MST_PORTS*4-1:0]			M_AXI_AWCACHE,
+		output	wire	[N_MST_PORTS*3-1:0]			M_AXI_AWPROT,
+		output	wire	[N_MST_PORTS*4-1:0]			M_AXI_AWQOS,
+		output	wire	[N_MST_PORTS-1:0]			M_AXI_AWVALID,
+		input	wire	[N_MST_PORTS-1:0]			M_AXI_AWREADY,
 		//
 		//
-		output	wire	[N_MASTERS*DATA_WIDTH-1:0]	M_AXI_WDATA,
-		output	wire	[N_MASTERS*DATA_WIDTH/8-1:0]	M_AXI_WSTRB,
-		output	wire	[N_MASTERS-1:0]			M_AXI_WLAST,
-		output	wire	[N_MASTERS-1:0]			M_AXI_WVALID,
-		input	wire	[N_MASTERS-1:0]			M_AXI_WREADY,
+		output	wire	[N_MST_PORTS*DATA_WIDTH-1:0]	M_AXI_WDATA,
+		output	wire	[N_MST_PORTS*DATA_WIDTH/8-1:0]	M_AXI_WSTRB,
+		output	wire	[N_MST_PORTS-1:0]			M_AXI_WLAST,
+		output	wire	[N_MST_PORTS-1:0]			M_AXI_WVALID,
+		input	wire	[N_MST_PORTS-1:0]			M_AXI_WREADY,
 		//
-		input	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		M_AXI_BID,
-		input	wire	[N_MASTERS*2-1:0]			M_AXI_BRESP,
-		input	wire	[N_MASTERS-1:0]			M_AXI_BVALID,
-		output	wire	[N_MASTERS-1:0]			M_AXI_BREADY,
+		input	wire	[N_MST_PORTS*C_AXI_ID_WIDTH-1:0]		M_AXI_BID,
+		input	wire	[N_MST_PORTS*2-1:0]			M_AXI_BRESP,
+		input	wire	[N_MST_PORTS-1:0]			M_AXI_BVALID,
+		output	wire	[N_MST_PORTS-1:0]			M_AXI_BREADY,
 		// }}}
 		// Read channel master outputs to the connected AXI slaves
 		// {{{
-		output	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		M_AXI_ARID,
-		output	wire	[N_MASTERS*ADDR_WIDTH-1:0]	M_AXI_ARADDR,
-		output	wire	[N_MASTERS*8-1:0]			M_AXI_ARLEN,
-		output	wire	[N_MASTERS*3-1:0]			M_AXI_ARSIZE,
-		output	wire	[N_MASTERS*2-1:0]			M_AXI_ARBURST,
-		output	wire	[N_MASTERS-1:0]			M_AXI_ARLOCK,
-		output	wire	[N_MASTERS*4-1:0]			M_AXI_ARCACHE,
-		output	wire	[N_MASTERS*4-1:0]			M_AXI_ARQOS,
-		output	wire	[N_MASTERS*3-1:0]			M_AXI_ARPROT,
-		output	wire	[N_MASTERS-1:0]			M_AXI_ARVALID,
-		input	wire	[N_MASTERS-1:0]			M_AXI_ARREADY,
+		output	wire	[N_MST_PORTS*C_AXI_ID_WIDTH-1:0]		M_AXI_ARID,
+		output	wire	[N_MST_PORTS*ADDR_WIDTH-1:0]	M_AXI_ARADDR,
+		output	wire	[N_MST_PORTS*8-1:0]			M_AXI_ARLEN,
+		output	wire	[N_MST_PORTS*3-1:0]			M_AXI_ARSIZE,
+		output	wire	[N_MST_PORTS*2-1:0]			M_AXI_ARBURST,
+		output	wire	[N_MST_PORTS-1:0]			M_AXI_ARLOCK,
+		output	wire	[N_MST_PORTS*4-1:0]			M_AXI_ARCACHE,
+		output	wire	[N_MST_PORTS*4-1:0]			M_AXI_ARQOS,
+		output	wire	[N_MST_PORTS*3-1:0]			M_AXI_ARPROT,
+		output	wire	[N_MST_PORTS-1:0]			M_AXI_ARVALID,
+		input	wire	[N_MST_PORTS-1:0]			M_AXI_ARREADY,
 		//
 		//
-		input	wire	[N_MASTERS*C_AXI_ID_WIDTH-1:0]		M_AXI_RID,
-		input	wire	[N_MASTERS*DATA_WIDTH-1:0]	M_AXI_RDATA,
-		input	wire	[N_MASTERS*2-1:0]			M_AXI_RRESP,
-		input	wire	[N_MASTERS-1:0]			M_AXI_RLAST,
-		input	wire	[N_MASTERS-1:0]			M_AXI_RVALID,
-		output	wire	[N_MASTERS-1:0]			M_AXI_RREADY
+		input	wire	[N_MST_PORTS*C_AXI_ID_WIDTH-1:0]		M_AXI_RID,
+		input	wire	[N_MST_PORTS*DATA_WIDTH-1:0]	M_AXI_RDATA,
+		input	wire	[N_MST_PORTS*2-1:0]			M_AXI_RRESP,
+		input	wire	[N_MST_PORTS-1:0]			M_AXI_RLAST,
+		input	wire	[N_MST_PORTS-1:0]			M_AXI_RVALID,
+		output	wire	[N_MST_PORTS-1:0]			M_AXI_RREADY
 		// }}}
 		// }}}
 	);
@@ -306,15 +306,15 @@ module	axi_interconnect #(
 	// to keep an udle channel open.
 	localparam	LGLINGER = (OPT_LINGER>1) ? $clog2(OPT_LINGER+1) : 1;
 	//
-	localparam	LGNM = (N_SLAVES>1) ? $clog2(N_SLAVES) : 1;
-	localparam	LGNS = (N_MASTERS>1) ? $clog2(N_MASTERS+1) : 1;
+	localparam	LGNM = (N_SLV_PORTS>1) ? $clog2(N_SLV_PORTS) : 1;
+	localparam	LGNS = (N_MST_PORTS>1) ? $clog2(N_MST_PORTS+1) : 1;
 	//
 	// In order to use indexes, and hence fully balanced mux trees, it helps
 	// to make certain that we have a power of two based lookup.  NMFULL
 	// is the number of masters in this lookup, with potentially some
 	// unused extra ones.  NSFULL is defined similarly.
-	localparam	NMFULL = (N_SLAVES>1) ? (1<<LGNM) : 1;
-	localparam	NSFULL = (N_MASTERS>1) ? (1<<LGNS) : 2;
+	localparam	NMFULL = (N_SLV_PORTS>1) ? (1<<LGNM) : 1;
+	localparam	NSFULL = (N_MST_PORTS>1) ? (1<<LGNS) : 2;
 	//
 	localparam [1:0] INTERCONNECT_ERROR = 2'b11;
 	//
@@ -346,38 +346,38 @@ module	axi_interconnect #(
 	genvar	N,M;
 	integer	iN, iM;
 
-	reg	[NSFULL-1:0]	wrequest		[0:N_SLAVES-1];
-	reg	[NSFULL-1:0]	rrequest		[0:N_SLAVES-1];
-	reg	[NSFULL-1:0]	wrequested		[0:N_SLAVES];
-	reg	[NSFULL-1:0]	rrequested		[0:N_SLAVES];
-	reg	[N_MASTERS:0]		wgrant			[0:N_SLAVES-1];
-	reg	[N_MASTERS:0]		rgrant			[0:N_SLAVES-1];
-	reg	[N_SLAVES-1:0]	mwgrant;
-	reg	[N_SLAVES-1:0]	mrgrant;
-	reg	[N_MASTERS-1:0]	swgrant;
-	reg	[N_MASTERS-1:0]	srgrant;
+	reg	[NSFULL-1:0]	wrequest		[0:N_SLV_PORTS-1];
+	reg	[NSFULL-1:0]	rrequest		[0:N_SLV_PORTS-1];
+	reg	[NSFULL-1:0]	wrequested		[0:N_SLV_PORTS];
+	reg	[NSFULL-1:0]	rrequested		[0:N_SLV_PORTS];
+	reg	[N_MST_PORTS:0]		wgrant			[0:N_SLV_PORTS-1];
+	reg	[N_MST_PORTS:0]		rgrant			[0:N_SLV_PORTS-1];
+	reg	[N_SLV_PORTS-1:0]	mwgrant;
+	reg	[N_SLV_PORTS-1:0]	mrgrant;
+	reg	[N_MST_PORTS-1:0]	swgrant;
+	reg	[N_MST_PORTS-1:0]	srgrant;
 
 	// verilator lint_off UNUSED
-	wire	[LGMAXBURST-1:0]	w_mawpending	[0:N_SLAVES-1];
-	wire	[LGMAXBURST-1:0]	wlasts_pending	[0:N_SLAVES-1];
-	wire	[LGMAXBURST-1:0]	w_mrpending	[0:N_SLAVES-1];
+	wire	[LGMAXBURST-1:0]	w_mawpending	[0:N_SLV_PORTS-1];
+	wire	[LGMAXBURST-1:0]	wlasts_pending	[0:N_SLV_PORTS-1];
+	wire	[LGMAXBURST-1:0]	w_mrpending	[0:N_SLV_PORTS-1];
 	// verilator lint_on  UNUSED
-	reg	[N_SLAVES-1:0]		mwfull;
-	reg	[N_SLAVES-1:0]		mrfull;
-	reg	[N_SLAVES-1:0]		mwempty;
-	reg	[N_SLAVES-1:0]		mrempty;
+	reg	[N_SLV_PORTS-1:0]		mwfull;
+	reg	[N_SLV_PORTS-1:0]		mrfull;
+	reg	[N_SLV_PORTS-1:0]		mwempty;
+	reg	[N_SLV_PORTS-1:0]		mrempty;
 	//
 	wire	[LGNS-1:0]		mwindex	[0:NMFULL-1];
 	wire	[LGNS-1:0]		mrindex	[0:NMFULL-1];
 	wire	[LGNM-1:0]		swindex	[0:NSFULL-1];
 	wire	[LGNM-1:0]		srindex	[0:NSFULL-1];
 
-	wire	[N_SLAVES-1:0]		wdata_expected;
+	wire	[N_SLV_PORTS-1:0]		wdata_expected;
 
 	// The shadow buffers
 	wire	[NMFULL-1:0]	m_awvalid, m_arvalid;
 	wire	[NMFULL-1:0]	m_wvalid;
-	wire	[N_SLAVES-1:0]	dcd_awvalid, dcd_arvalid;
+	wire	[N_SLV_PORTS-1:0]	dcd_awvalid, dcd_arvalid;
 
 	wire	[C_AXI_ID_WIDTH-1:0]		m_awid		[0:NMFULL-1];
 	wire	[ADDR_WIDTH-1:0]		m_awaddr	[0:NMFULL-1];
@@ -404,35 +404,35 @@ module	axi_interconnect #(
 	wire	[3:0]				m_arqos		[0:NMFULL-1];
 	//
 	//
-	reg	[N_SLAVES-1:0]			berr_valid;
-	reg	[IW-1:0]			berr_id		[0:N_SLAVES-1];
+	reg	[N_SLV_PORTS-1:0]			berr_valid;
+	reg	[IW-1:0]			berr_id		[0:N_SLV_PORTS-1];
 	//
-	reg	[N_SLAVES-1:0]			rerr_none;
-	reg	[N_SLAVES-1:0]			rerr_last;
-	reg	[8:0]				rerr_outstanding [0:N_SLAVES-1];
-	reg	[IW-1:0]			rerr_id		 [0:N_SLAVES-1];
+	reg	[N_SLV_PORTS-1:0]			rerr_none;
+	reg	[N_SLV_PORTS-1:0]			rerr_last;
+	reg	[8:0]				rerr_outstanding [0:N_SLV_PORTS-1];
+	reg	[IW-1:0]			rerr_id		 [0:N_SLV_PORTS-1];
 
-	wire	[N_SLAVES-1:0]	skd_awvalid, skd_awstall;
-	wire	[N_SLAVES-1:0]	skd_arvalid, skd_arstall;
-	wire	[IW-1:0]	skd_awid			[0:N_SLAVES-1];
-	wire	[AW-1:0]	skd_awaddr			[0:N_SLAVES-1];
-	wire	[8-1:0]		skd_awlen			[0:N_SLAVES-1];
-	wire	[3-1:0]		skd_awsize			[0:N_SLAVES-1];
-	wire	[2-1:0]		skd_awburst			[0:N_SLAVES-1];
-	wire	[N_SLAVES-1:0]	skd_awlock;
-	wire	[4-1:0]		skd_awcache			[0:N_SLAVES-1];
-	wire	[3-1:0]		skd_awprot			[0:N_SLAVES-1];
-	wire	[4-1:0]		skd_awqos			[0:N_SLAVES-1];
+	wire	[N_SLV_PORTS-1:0]	skd_awvalid, skd_awstall;
+	wire	[N_SLV_PORTS-1:0]	skd_arvalid, skd_arstall;
+	wire	[IW-1:0]	skd_awid			[0:N_SLV_PORTS-1];
+	wire	[AW-1:0]	skd_awaddr			[0:N_SLV_PORTS-1];
+	wire	[8-1:0]		skd_awlen			[0:N_SLV_PORTS-1];
+	wire	[3-1:0]		skd_awsize			[0:N_SLV_PORTS-1];
+	wire	[2-1:0]		skd_awburst			[0:N_SLV_PORTS-1];
+	wire	[N_SLV_PORTS-1:0]	skd_awlock;
+	wire	[4-1:0]		skd_awcache			[0:N_SLV_PORTS-1];
+	wire	[3-1:0]		skd_awprot			[0:N_SLV_PORTS-1];
+	wire	[4-1:0]		skd_awqos			[0:N_SLV_PORTS-1];
 	//
-	wire	[IW-1:0]	skd_arid			[0:N_SLAVES-1];
-	wire	[AW-1:0]	skd_araddr			[0:N_SLAVES-1];
-	wire	[8-1:0]		skd_arlen			[0:N_SLAVES-1];
-	wire	[3-1:0]		skd_arsize			[0:N_SLAVES-1];
-	wire	[2-1:0]		skd_arburst			[0:N_SLAVES-1];
-	wire	[N_SLAVES-1:0]	skd_arlock;
-	wire	[4-1:0]		skd_arcache			[0:N_SLAVES-1];
-	wire	[3-1:0]		skd_arprot			[0:N_SLAVES-1];
-	wire	[4-1:0]		skd_arqos			[0:N_SLAVES-1];
+	wire	[IW-1:0]	skd_arid			[0:N_SLV_PORTS-1];
+	wire	[AW-1:0]	skd_araddr			[0:N_SLV_PORTS-1];
+	wire	[8-1:0]		skd_arlen			[0:N_SLV_PORTS-1];
+	wire	[3-1:0]		skd_arsize			[0:N_SLV_PORTS-1];
+	wire	[2-1:0]		skd_arburst			[0:N_SLV_PORTS-1];
+	wire	[N_SLV_PORTS-1:0]	skd_arlock;
+	wire	[4-1:0]		skd_arcache			[0:N_SLV_PORTS-1];
+	wire	[3-1:0]		skd_arprot			[0:N_SLV_PORTS-1];
+	wire	[4-1:0]		skd_arqos			[0:N_SLV_PORTS-1];
 
 	// Verilator lint_off UNUSED
 	reg	[NSFULL-1:0]	m_axi_awvalid;
@@ -464,14 +464,14 @@ module	axi_interconnect #(
 	reg	[NSFULL-1:0]	m_axi_rlast;
 	reg	[2-1:0]		m_axi_rresp	[0:NSFULL-1];
 
-	reg	[N_SLAVES-1:0]	slave_awaccepts;
-	reg	[N_SLAVES-1:0]	slave_waccepts;
-	reg	[N_SLAVES-1:0]	slave_raccepts;
+	reg	[N_SLV_PORTS-1:0]	slave_awaccepts;
+	reg	[N_SLV_PORTS-1:0]	slave_waccepts;
+	reg	[N_SLV_PORTS-1:0]	slave_raccepts;
 
-	reg	[N_SLAVES-1:0]	bskd_valid;
-	reg	[N_SLAVES-1:0]	rskd_valid, rskd_rlast;
-	wire	[N_SLAVES-1:0]	bskd_ready;
-	wire	[N_SLAVES-1:0]	rskd_ready;
+	reg	[N_SLV_PORTS-1:0]	bskd_valid;
+	reg	[N_SLV_PORTS-1:0]	rskd_valid, rskd_rlast;
+	wire	[N_SLV_PORTS-1:0]	bskd_ready;
+	wire	[N_SLV_PORTS-1:0]	rskd_ready;
 
 	wire	[NMFULL-1:0]	write_qos_lockout,
 				read_qos_lockout;
@@ -490,14 +490,14 @@ module	axi_interconnect #(
 		m_axi_bvalid = 0;
 		m_axi_bready = -1;
 
-		m_axi_awvalid[N_MASTERS-1:0] = M_AXI_AWVALID;
-		m_axi_awready[N_MASTERS-1:0] = M_AXI_AWREADY;
-		m_axi_wvalid[N_MASTERS-1:0]  = M_AXI_WVALID;
-		m_axi_wready[N_MASTERS-1:0]  = M_AXI_WREADY;
-		m_axi_bvalid[N_MASTERS-1:0]  = M_AXI_BVALID;
-		m_axi_bready[N_MASTERS-1:0]  = M_AXI_BREADY;
+		m_axi_awvalid[N_MST_PORTS-1:0] = M_AXI_AWVALID;
+		m_axi_awready[N_MST_PORTS-1:0] = M_AXI_AWREADY;
+		m_axi_wvalid[N_MST_PORTS-1:0]  = M_AXI_WVALID;
+		m_axi_wready[N_MST_PORTS-1:0]  = M_AXI_WREADY;
+		m_axi_bvalid[N_MST_PORTS-1:0]  = M_AXI_BVALID;
+		m_axi_bready[N_MST_PORTS-1:0]  = M_AXI_BREADY;
 
-		for(iM=0; iM<N_MASTERS; iM=iM+1)
+		for(iM=0; iM<N_MST_PORTS; iM=iM+1)
 		begin
 			m_axi_awid[iM]   = M_AXI_AWID[   iM*IW +: IW];
 			m_axi_awlen[iM]  = M_AXI_AWLEN[  iM* 8 +:  8];
@@ -510,7 +510,7 @@ module	axi_interconnect #(
 			m_axi_rresp[iM] = M_AXI_RRESP[iM* 2 +:  2];
 			m_axi_rlast[iM] = M_AXI_RLAST[iM];
 		end
-		for(iM=N_MASTERS; iM<NSFULL; iM=iM+1)
+		for(iM=N_MST_PORTS; iM<NSFULL; iM=iM+1)
 		begin
 			m_axi_awid[iM]   = 0;
 			m_axi_awlen[iM]  = 0;
@@ -534,21 +534,21 @@ module	axi_interconnect #(
 		m_axi_arready = 0;
 		m_axi_rvalid = 0;
 		m_axi_rready = 0;
-		for(iM=0; iM<N_MASTERS; iM=iM+1)
+		for(iM=0; iM<N_MST_PORTS; iM=iM+1)
 		begin
 			m_axi_arlen[iM] = M_AXI_ARLEN[iM* 8 +:  8];
 			m_axi_arid[iM]  = M_AXI_ARID[ iM*IW +: IW];
 		end
-		for(iM=N_MASTERS; iM<NSFULL; iM=iM+1)
+		for(iM=N_MST_PORTS; iM<NSFULL; iM=iM+1)
 		begin
 			m_axi_arlen[iM] = 0;
 			m_axi_arid[iM]  = 0;
 		end
 
-		m_axi_arvalid[N_MASTERS-1:0] = M_AXI_ARVALID;
-		m_axi_arready[N_MASTERS-1:0] = M_AXI_ARREADY;
-		m_axi_rvalid[N_MASTERS-1:0]  = M_AXI_RVALID;
-		m_axi_rready[N_MASTERS-1:0]  = M_AXI_RREADY;
+		m_axi_arvalid[N_MST_PORTS-1:0] = M_AXI_ARVALID;
+		m_axi_arready[N_MST_PORTS-1:0] = M_AXI_ARREADY;
+		m_axi_rvalid[N_MST_PORTS-1:0]  = M_AXI_RVALID;
+		m_axi_rready[N_MST_PORTS-1:0]  = M_AXI_RREADY;
 	end
 	// }}}
 
@@ -567,9 +567,9 @@ module	axi_interconnect #(
 		//
 		// Here we do all of the combinatoric calculations, so the
 		// master only needs to reference one bit of this signal
-		slave_awready[N_MASTERS-1:0] = (~M_AXI_AWVALID | M_AXI_AWREADY);
-		slave_wready[N_MASTERS-1:0]  = (~M_AXI_WVALID | M_AXI_WREADY);
-		slave_arready[N_MASTERS-1:0] = (~M_AXI_ARVALID | M_AXI_ARREADY);
+		slave_awready[N_MST_PORTS-1:0] = (~M_AXI_AWVALID | M_AXI_AWREADY);
+		slave_wready[N_MST_PORTS-1:0]  = (~M_AXI_WVALID | M_AXI_WREADY);
+		slave_arready[N_MST_PORTS-1:0] = (~M_AXI_ARVALID | M_AXI_ARREADY);
 	end
 	// }}}
 
@@ -581,10 +581,10 @@ module	axi_interconnect #(
 	//
 	//
 
-	generate for(N=0; N<N_SLAVES; N=N+1)
+	generate for(N=0; N<N_SLV_PORTS; N=N+1)
 	begin : W1_DECODE_WRITE_REQUEST
 	// {{{
-		wire	[N_MASTERS:0]	wdecode;
+		wire	[N_MST_PORTS:0]	wdecode;
 
 		// awskid, the skidbuffer for the incoming AW* channel
 		// {{{
@@ -615,7 +615,7 @@ module	axi_interconnect #(
 		// {{{
 		addrdecode #(
 			// {{{
-			.AW(AW), .DW(IW+8+3+2+1+4+3+4), .NS(N_MASTERS),
+			.AW(AW), .DW(IW+8+3+2+1+4+3+4), .NS(N_MST_PORTS),
 			.SLAVE_ADDR(SLAVE_ADDR),
 			.SLAVE_MASK(SLAVE_MASK),
 			.OPT_REGISTERED(OPT_BUFFER_DECODER)
@@ -676,7 +676,7 @@ module	axi_interconnect #(
 			// the grant is issued for
 			if (!wrequest[N][mwindex[N]])
 				slave_awaccepts[N] = 1'b0;
-			if (!wgrant[N][N_MASTERS])
+			if (!wgrant[N][N_MST_PORTS])
 			begin
 				if (!slave_awready[mwindex[N]])
 					slave_awaccepts[N] = 1'b0;
@@ -703,7 +703,7 @@ module	axi_interconnect #(
 				slave_waccepts[N] = 1'b0;
 			if (!wdata_expected[N] && (!OPT_AWW || !slave_awaccepts[N]))
 				slave_waccepts[N] = 1'b0;
-			if (!wgrant[N][N_MASTERS])
+			if (!wgrant[N][N_MST_PORTS])
 			begin
 				if (!slave_wready[mwindex[N]])
 					slave_waccepts[N] = 1'b0;
@@ -719,14 +719,14 @@ module	axi_interconnect #(
 			r_awvalid = dcd_awvalid[N] && !mwfull[N];
 			wrequest[N]= 0;
 			if (!mwfull[N])
-				wrequest[N][N_MASTERS:0] = wdecode;
+				wrequest[N][N_MST_PORTS:0] = wdecode;
 		end
 
 		assign	m_awvalid[N] = r_awvalid;
 
 		// QOS handling via write_qos_lockout
 		// {{{
-		if (!OPT_QOS || N_SLAVES == 1)
+		if (!OPT_QOS || N_SLV_PORTS == 1)
 		begin : WRITE_NO_QOS
 
 			// If we aren't using QOS, then never lock any packets
@@ -747,12 +747,12 @@ module	axi_interconnect #(
 			else begin
 				r_write_qos_lockout <= 0;
 
-				for(iN=0; iN<N_SLAVES; iN=iN+1)
+				for(iN=0; iN<N_SLV_PORTS; iN=iN+1)
 				if (iN != N)
 				begin
 					if (m_awvalid[N]
-						&&(|(wrequest[iN][N_MASTERS-1:0]
-							& wdecode[N_MASTERS-1:0]))
+						&&(|(wrequest[iN][N_MST_PORTS-1:0]
+							& wdecode[N_MST_PORTS-1:0]))
 						&&(m_awqos[N] < m_awqos[iN]))
 						r_write_qos_lockout <= 1;
 				end
@@ -763,7 +763,7 @@ module	axi_interconnect #(
 		end
 		// }}}
 
-	end for (N=N_SLAVES; N<NMFULL; N=N+1)
+	end for (N=N_SLV_PORTS; N<NMFULL; N=N+1)
 	begin : UNUSED_WSKID_BUFFERS
 	// {{{
 		// The following values are unused.  They need to be defined
@@ -793,11 +793,11 @@ module	axi_interconnect #(
 	end endgenerate
 
 	// Read skid buffers and address decoding, slave_araccepts logic
-	generate for(N=0; N<N_SLAVES; N=N+1)
+	generate for(N=0; N<N_SLV_PORTS; N=N+1)
 	begin : R1_DECODE_READ_REQUEST
 	// {{{
 		reg		r_arvalid;
-		wire	[N_MASTERS:0]	rdecode;
+		wire	[N_MST_PORTS:0]	rdecode;
 
 		// arskid
 		// {{{
@@ -827,7 +827,7 @@ module	axi_interconnect #(
 		// {{{
 		addrdecode #(
 			// {{{
-			.AW(AW), .DW(IW+8+3+2+1+4+3+4), .NS(N_MASTERS),
+			.AW(AW), .DW(IW+8+3+2+1+4+3+4), .NS(N_MST_PORTS),
 			.SLAVE_ADDR(SLAVE_ADDR),
 			.SLAVE_MASK(SLAVE_MASK),
 			.OPT_REGISTERED(OPT_BUFFER_DECODER)
@@ -855,7 +855,7 @@ module	axi_interconnect #(
 			r_arvalid = dcd_arvalid[N] && !mrfull[N];
 			rrequest[N] = 0;
 			if (!mrfull[N])
-				rrequest[N][N_MASTERS:0] = rdecode;
+				rrequest[N][N_MST_PORTS:0] = rdecode;
 		end
 
 		assign	m_arvalid[N] = r_arvalid;
@@ -877,7 +877,7 @@ module	axi_interconnect #(
 			if (!rrequest[N][mrindex[N]])
 				slave_raccepts[N] = 1'b0;
 			// verilator lint_on  WIDTH
-			if (!rgrant[N][N_MASTERS])
+			if (!rgrant[N][N_MST_PORTS])
 			begin
 				if (!slave_arready[mrindex[N]])
 					slave_raccepts[N] = 1'b0;
@@ -892,7 +892,7 @@ module	axi_interconnect #(
 		// QOS number is requesting a given slave.  It will not
 		// affect existing outstanding packets, but will be used to
 		// prevent further packets from being sent to a given slave.
-		if (!OPT_QOS || N_SLAVES == 1)
+		if (!OPT_QOS || N_SLV_PORTS == 1)
 		begin : READ_NO_QOS
 
 			// If we aren't implementing QOS, then the lockout
@@ -913,13 +913,13 @@ module	axi_interconnect #(
 			else begin
 				r_read_qos_lockout <= 0;
 
-				for(iN=0; iN<N_SLAVES; iN=iN+1)
+				for(iN=0; iN<N_SLV_PORTS; iN=iN+1)
 				if (iN != N)
 				begin
 					if (m_arvalid[iN]
 						&& !slave_raccepts[N]
-						&&(|(rrequest[iN][N_MASTERS-1:0]
-							& rdecode[N_MASTERS-1:0]))
+						&&(|(rrequest[iN][N_MST_PORTS-1:0]
+							& rdecode[N_MST_PORTS-1:0]))
 						&&(m_arqos[N] < m_arqos[iN]))
 						r_read_qos_lockout <= 1;
 				end
@@ -930,7 +930,7 @@ module	axi_interconnect #(
 		end
 		// }}}
 
-	end for (N=N_SLAVES; N<NMFULL; N=N+1)
+	end for (N=N_SLV_PORTS; N<NMFULL; N=N+1)
 	begin : UNUSED_RSKID_BUFFERS
 	// {{{
 		assign	m_arvalid[N] = 0;
@@ -963,22 +963,22 @@ module	axi_interconnect #(
 	always @(*)
 	begin : W2_DECONFLICT_WRITE_REQUESTS
 
-		for(iN=0; iN<=N_SLAVES; iN=iN+1)
+		for(iN=0; iN<=N_SLV_PORTS; iN=iN+1)
 			wrequested[iN] = 0;
 
 		// Vivado may complain about too many bits for wrequested.
 		// This is (currrently) expected.  mwindex is used to index
 		// into wrequested, and mwindex has LGNS bits, where LGNS
-		// is $clog2(N_MASTERS+1) rather than $clog2(N_MASTERS).  The extra bits
+		// is $clog2(N_MST_PORTS+1) rather than $clog2(N_MST_PORTS).  The extra bits
 		// are defined to be zeros, but the point is they are defined.
 		// Therefore, no matter what mwindex is, it will always
 		// reference something valid.
-		wrequested[N_SLAVES] = 0;
+		wrequested[N_SLV_PORTS] = 0;
 
-		for(iM=0; iM<N_MASTERS; iM=iM+1)
+		for(iM=0; iM<N_MST_PORTS; iM=iM+1)
 		begin
 			wrequested[0][iM] = 1'b0;
-			for(iN=1; iN<N_SLAVES ; iN=iN+1)
+			for(iN=1; iN<N_SLV_PORTS ; iN=iN+1)
 			begin
 				// Continue to request any channel with
 				// a grant and pending operations
@@ -991,7 +991,7 @@ module	axi_interconnect #(
 				if (wrequested[iN-1][iM])
 					wrequested[iN][iM] = 1;
 			end
-			wrequested[N_SLAVES][iM] = wrequest[N_SLAVES-1][iM] || wrequested[N_SLAVES-1][iM];
+			wrequested[N_SLV_PORTS][iM] = wrequest[N_SLV_PORTS-1][iM] || wrequested[N_SLV_PORTS-1][iM];
 		end
 	end
 	// }}}
@@ -1001,17 +1001,17 @@ module	axi_interconnect #(
 	always @(*)
 	begin : R2_DECONFLICT_READ_REQUESTS
 
-		for(iN=0; iN<N_SLAVES ; iN=iN+1)
+		for(iN=0; iN<N_SLV_PORTS ; iN=iN+1)
 			rrequested[iN] = 0;
 
 		// See the note above for wrequested.  This applies to
 		// rrequested as well.
-		rrequested[N_SLAVES] = 0;
+		rrequested[N_SLV_PORTS] = 0;
 
-		for(iM=0; iM<N_MASTERS; iM=iM+1)
+		for(iM=0; iM<N_MST_PORTS; iM=iM+1)
 		begin
 			rrequested[0][iM] = 0;
-			for(iN=1; iN<N_SLAVES ; iN=iN+1)
+			for(iN=1; iN<N_SLV_PORTS ; iN=iN+1)
 			begin
 				// Continue to request any channel with
 				// a grant and pending operations
@@ -1024,13 +1024,13 @@ module	axi_interconnect #(
 				if (rrequested[iN-1][iM])
 					rrequested[iN][iM] = 1;
 			end
-			rrequested[N_SLAVES][iM] = rrequest[N_SLAVES-1][iM] || rrequested[N_SLAVES-1][iM];
+			rrequested[N_SLV_PORTS][iM] = rrequest[N_SLV_PORTS-1][iM] || rrequested[N_SLV_PORTS-1][iM];
 		end
 	end
 	// }}}
 
 
-	generate for(N=0; N<N_SLAVES; N=N+1)
+	generate for(N=0; N<N_SLV_PORTS; N=N+1)
 	begin : W3_ARBITRATE_WRITE_REQUESTS
 	// {{{
 		reg			stay_on_channel;
@@ -1054,7 +1054,7 @@ module	axi_interconnect #(
 		// etc.
 		always @(*)
 		begin
-			stay_on_channel = |(wrequest[N][N_MASTERS:0] & wgrant[N]);
+			stay_on_channel = |(wrequest[N][N_MST_PORTS:0] & wgrant[N]);
 			if (write_qos_lockout[N])
 				stay_on_channel = 0;
 
@@ -1080,17 +1080,17 @@ module	axi_interconnect #(
 			// 2) no one else is using it, and 3) no one earlier
 			// has requested it
 			requested_channel_is_available =
-				|(wrequest[N][N_MASTERS-1:0] & ~swgrant
-						& ~wrequested[N][N_MASTERS-1:0]);
+				|(wrequest[N][N_MST_PORTS-1:0] & ~swgrant
+						& ~wrequested[N][N_MST_PORTS-1:0]);
 
 			// Of course, the error pseudo-channel is *always*
 			// available to us.
-			if (wrequest[N][N_MASTERS])
+			if (wrequest[N][N_MST_PORTS])
 				requested_channel_is_available = 1;
 
 			// Likewise, if we are the only master, then the
 			// channel is always available on any request
-			if (N_SLAVES < 2)
+			if (N_SLV_PORTS < 2)
 				requested_channel_is_available = m_awvalid[N];
 		end
 		// }}}
@@ -1116,7 +1116,7 @@ module	axi_interconnect #(
 			initial	r_linger = 0;
 			initial	linger_counter = 0;
 			always @(posedge S_AXI_ACLK)
-			if (!S_AXI_ARESETN || wgrant[N][N_MASTERS])
+			if (!S_AXI_ARESETN || wgrant[N][N_MST_PORTS])
 			begin
 				r_linger <= 0;
 				linger_counter <= 0;
@@ -1149,7 +1149,7 @@ module	axi_interconnect #(
 		begin
 			leave_channel = 0;
 			if (!m_awvalid[N]
-				&& (!linger || wrequested[N_SLAVES][mwindex[N]]))
+				&& (!linger || wrequested[N_SLV_PORTS][mwindex[N]]))
 				// Leave the channel after OPT_LINGER counts
 				// of the channel being idle, or when someone
 				// else asks for the channel
@@ -1182,7 +1182,7 @@ module	axi_interconnect #(
 			begin
 				// Switch to a new channel
 				mwgrant[N] <= 1'b1;
-				wgrant[N]  <= wrequest[N][N_MASTERS:0];
+				wgrant[N]  <= wrequest[N][N_MST_PORTS:0];
 			end else if (leave_channel)
 			begin
 				// Revoke the given grant
@@ -1197,7 +1197,7 @@ module	axi_interconnect #(
 		always @(wrequest[N])
 		begin
 			requested_index = 0;
-			for(iM=0; iM<=N_MASTERS; iM=iM+1)
+			for(iM=0; iM<=N_MST_PORTS; iM=iM+1)
 			if (wrequest[N][iM])
 				requested_index= requested_index | iM[LGNS-1:0];
 		end
@@ -1211,14 +1211,14 @@ module	axi_interconnect #(
 		assign	mwindex[N] = r_mwindex;
 		// }}}
 
-	end for (N=N_SLAVES; N<NMFULL; N=N+1)
+	end for (N=N_SLV_PORTS; N<NMFULL; N=N+1)
 	begin
 
 		assign	mwindex[N] = 0;
 	// }}}
 	end endgenerate
 
-	generate for(N=0; N<N_SLAVES; N=N+1)
+	generate for(N=0; N<N_SLV_PORTS; N=N+1)
 	begin : R3_ARBITRATE_READ_REQUESTS
 	// {{{
 		reg			stay_on_channel;
@@ -1243,7 +1243,7 @@ module	axi_interconnect #(
 		// etc.
 		always @(*)
 		begin
-			stay_on_channel = |(rrequest[N][N_MASTERS:0] & rgrant[N]);
+			stay_on_channel = |(rrequest[N][N_MST_PORTS:0] & rgrant[N]);
 			if (read_qos_lockout[N])
 				stay_on_channel = 0;
 
@@ -1256,7 +1256,7 @@ module	axi_interconnect #(
 			// if we have a grant to the internal slave-error
 			// channel, then we cannot issue a grant to any other
 			// while this grant is active
-			if (rgrant[N][N_MASTERS] && (!rerr_none[N] || rskd_valid[N]))
+			if (rgrant[N][N_MST_PORTS] && (!rerr_none[N] || rskd_valid[N]))
 				stay_on_channel = 1;
 		end
 		// }}}
@@ -1269,17 +1269,17 @@ module	axi_interconnect #(
 			// 2) no one else is using it, and 3) no one earlier
 			// has requested it
 			requested_channel_is_available =
-				|(rrequest[N][N_MASTERS-1:0] & ~srgrant
-						& ~rrequested[N][N_MASTERS-1:0]);
+				|(rrequest[N][N_MST_PORTS-1:0] & ~srgrant
+						& ~rrequested[N][N_MST_PORTS-1:0]);
 
 			// Of course, the error pseudo-channel is *always*
 			// available to us.
-			if (rrequest[N][N_MASTERS])
+			if (rrequest[N][N_MST_PORTS])
 				requested_channel_is_available = 1;
 
 			// Likewise, if we are the only master, then the
 			// channel is always available on any request
-			if (N_SLAVES < 2)
+			if (N_SLV_PORTS < 2)
 				requested_channel_is_available = m_arvalid[N];
 		end
 		// }}}
@@ -1305,7 +1305,7 @@ module	axi_interconnect #(
 			initial	linger = 0;
 			initial	linger_counter = 0;
 			always @(posedge S_AXI_ACLK)
-			if (!S_AXI_ARESETN || rgrant[N][N_MASTERS])
+			if (!S_AXI_ARESETN || rgrant[N][N_MST_PORTS])
 			begin
 				linger <= 0;
 				linger_counter <= 0;
@@ -1333,7 +1333,7 @@ module	axi_interconnect #(
 		begin
 			leave_channel = 0;
 			if (!m_arvalid[N]
-				&& (!linger || rrequested[N_SLAVES][mrindex[N]]))
+				&& (!linger || rrequested[N_SLV_PORTS][mrindex[N]]))
 				// Leave the channel after OPT_LINGER counts
 				// of the channel being idle, or when someone
 				// else asks for the channel
@@ -1363,7 +1363,7 @@ module	axi_interconnect #(
 			begin
 				// Switching channels
 				mrgrant[N] <= 1'b1;
-				rgrant[N] <= rrequest[N][N_MASTERS:0];
+				rgrant[N] <= rrequest[N][N_MST_PORTS:0];
 			end else if (leave_channel)
 			begin
 				mrgrant[N] <= 1'b0;
@@ -1377,7 +1377,7 @@ module	axi_interconnect #(
 		always @(rrequest[N])
 		begin
 			requested_index = 0;
-			for(iM=0; iM<=N_MASTERS; iM=iM+1)
+			for(iM=0; iM<=N_MST_PORTS; iM=iM+1)
 			if (rrequest[N][iM])
 				requested_index = requested_index|iM[LGNS-1:0];
 		end
@@ -1390,7 +1390,7 @@ module	axi_interconnect #(
 		assign	mrindex[N] = r_mrindex;
 		// }}}
 
-	end for (N=N_SLAVES; N<NMFULL; N=N+1)
+	end for (N=N_SLV_PORTS; N<NMFULL; N=N+1)
 	begin
 
 		assign	mrindex[N] = 0;
@@ -1398,13 +1398,13 @@ module	axi_interconnect #(
 	end endgenerate
 
 	// Calculate swindex (registered)
-	generate for (M=0; M<N_MASTERS; M=M+1)
+	generate for (M=0; M<N_MST_PORTS; M=M+1)
 	begin : W4_SLAVE_WRITE_INDEX
 	// {{{
 		// swindex is a per slave index, containing the index of the
 		// master that has currently won write arbitration and so
 		// has permission to access this slave
-		if (N_SLAVES <= 1)
+		if (N_SLV_PORTS <= 1)
 		begin
 
 			// If there's only ever one master, that index is
@@ -1422,7 +1422,7 @@ module	axi_interconnect #(
 			always @(*)
 			begin
 				reqwindex = 0;
-			for(iN=0; iN<N_SLAVES; iN=iN+1)
+			for(iN=0; iN<N_SLV_PORTS; iN=iN+1)
 			if ((!mwgrant[iN] || mwempty[iN])
 				&&(wrequest[iN][M] && !wrequested[iN][M]))
 					reqwindex = reqwindex | iN[LGNM-1:0];
@@ -1435,7 +1435,7 @@ module	axi_interconnect #(
 			assign	swindex[M] = r_swindex;
 		end
 
-	end for (M=N_MASTERS; M<NSFULL; M=M+1)
+	end for (M=N_MST_PORTS; M<NSFULL; M=M+1)
 	begin
 
 		assign	swindex[M] = 0;
@@ -1443,13 +1443,13 @@ module	axi_interconnect #(
 	end endgenerate
 
 	// Calculate srindex (registered)
-	generate for (M=0; M<N_MASTERS; M=M+1)
+	generate for (M=0; M<N_MST_PORTS; M=M+1)
 	begin : R4_SLAVE_READ_INDEX
 	// {{{
 		// srindex is an index to the master that has currently won
 		// read arbitration to the given slave.
 
-		if (N_SLAVES <= 1)
+		if (N_SLV_PORTS <= 1)
 		begin
 			// If there's only one master, srindex can always
 			// point to that master--no longic required
@@ -1465,7 +1465,7 @@ module	axi_interconnect #(
 			always @(*)
 			begin
 				reqrindex = 0;
-			for(iN=0; iN<N_SLAVES; iN=iN+1)
+			for(iN=0; iN<N_SLV_PORTS; iN=iN+1)
 			if ((!mrgrant[iN] || mrempty[iN])
 				&&(rrequest[iN][M] && !rrequested[iN][M]))
 					reqrindex = reqrindex | iN[LGNM-1:0];
@@ -1478,7 +1478,7 @@ module	axi_interconnect #(
 			assign	srindex[M] = r_srindex;
 		end
 
-	end for (M=N_MASTERS; M<NSFULL; M=M+1)
+	end for (M=N_MST_PORTS; M<NSFULL; M=M+1)
 	begin
 
 		assign	srindex[M] = 0;
@@ -1486,7 +1486,7 @@ module	axi_interconnect #(
 	end endgenerate
 
 	// swgrant and srgrant (combinatorial)
-	generate for(M=0; M<N_MASTERS; M=M+1)
+	generate for(M=0; M<N_MST_PORTS; M=M+1)
 	begin : SGRANT
 	// {{{
 
@@ -1498,7 +1498,7 @@ module	axi_interconnect #(
 		always @(*)
 		begin
 			swgrant[M] = 0;
-			for(iN=0; iN<N_SLAVES; iN=iN+1)
+			for(iN=0; iN<N_SLV_PORTS; iN=iN+1)
 			if (wgrant[iN][M])
 				swgrant[M] = 1;
 		end
@@ -1508,7 +1508,7 @@ module	axi_interconnect #(
 		always @(*)
 		begin
 			srgrant[M] = 0;
-			for(iN=0; iN<N_SLAVES; iN=iN+1)
+			for(iN=0; iN<N_SLV_PORTS; iN=iN+1)
 			if (rgrant[iN][M])
 				srgrant[M] = 1;
 		end
@@ -1524,7 +1524,7 @@ module	axi_interconnect #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	// Assign outputs to the various slaves
-	generate for(M=0; M<N_MASTERS; M=M+1)
+	generate for(M=0; M<N_MST_PORTS; M=M+1)
 	begin : W5_WRITE_SLAVE_OUTPUTS
 	// {{{
 		reg			axi_awvalid;
@@ -1595,7 +1595,7 @@ module	axi_interconnect #(
 			if (!OPT_LOWPOWER||(m_awvalid[swindex[M]]&&awaccepts))
 			begin
 				// swindex[M] is defined as 0 above in the
-				// case where N_SLAVES <= 1
+				// case where N_SLV_PORTS <= 1
 				axi_awid    <= m_awid[   swindex[M]];
 				axi_awaddr  <= m_awaddr[ swindex[M]];
 				axi_awlen   <= m_awlen[  swindex[M]];
@@ -1652,7 +1652,7 @@ module	axi_interconnect #(
 		begin
 			if (!OPT_LOWPOWER || (m_wvalid[swindex[M]]&&slave_waccepts[swindex[M]]))
 			begin
-				// If N_SLAVES <= 1, swindex[M] is already defined
+				// If N_SLV_PORTS <= 1, swindex[M] is already defined
 				// to be zero above
 				axi_wdata  <= m_wdata[swindex[M]];
 				axi_wstrb  <= m_wstrb[swindex[M]];
@@ -1699,7 +1699,7 @@ module	axi_interconnect #(
 	end endgenerate
 
 
-	generate for(M=0; M<N_MASTERS; M=M+1)
+	generate for(M=0; M<N_MST_PORTS; M=M+1)
 	begin : R5_READ_SLAVE_OUTPUTS
 	// {{{
 		reg				axi_arvalid;
@@ -1753,7 +1753,7 @@ module	axi_interconnect #(
 		begin
 			if (!OPT_LOWPOWER || (m_arvalid[srindex[M]] && slave_raccepts[srindex[M]]))
 			begin
-				// If N_SLAVES <=1, srindex[M] is defined to be zero
+				// If N_SLV_PORTS <=1, srindex[M] is defined to be zero
 				axi_arid    <= m_arid[   srindex[M]];
 				axi_araddr  <= m_araddr[ srindex[M]];
 				axi_arlen   <= m_arlen[  srindex[M]];
@@ -1807,7 +1807,7 @@ module	axi_interconnect #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	// Return values
-	generate for (N=0; N<N_SLAVES; N=N+1)
+	generate for (N=0; N<N_SLV_PORTS; N=N+1)
 	begin : W6_WRITE_RETURN_CHANNEL
 	// {{{
 		reg	[1:0]	i_axi_bresp;
@@ -1819,7 +1819,7 @@ module	axi_interconnect #(
 		always @(posedge S_AXI_ACLK)
 		if (!S_AXI_ARESETN)
 			berr_valid[N] <= 0;
-		else if (wgrant[N][N_MASTERS] && m_wvalid[N] && m_wlast[N]
+		else if (wgrant[N][N_MST_PORTS] && m_wvalid[N] && m_wlast[N]
 				&& slave_waccepts[N])
 			berr_valid[N] <= 1;
 		else if (bskd_ready[N])
@@ -1836,7 +1836,7 @@ module	axi_interconnect #(
 			berr_id[N] <= m_awid[N];
 
 		always @(*)
-		if (wgrant[N][N_MASTERS])
+		if (wgrant[N][N_MST_PORTS])
 		begin
 			i_axi_bid   = berr_id[N];
 			i_axi_bresp = INTERCONNECT_ERROR;
@@ -1868,7 +1868,7 @@ module	axi_interconnect #(
 	end endgenerate
 
 	// Return values
-	generate for (N=0; N<N_SLAVES; N=N+1)
+	generate for (N=0; N<N_SLV_PORTS; N=N+1)
 	begin : R6_READ_RETURN_CHANNEL
 	// {{{
 
@@ -1882,13 +1882,13 @@ module	axi_interconnect #(
 		// response from the slave itself, or from our internally
 		// generated (no-slave exists) FSM.
 		always @(*)
-		if (rgrant[N][N_MASTERS])
+		if (rgrant[N][N_MST_PORTS])
 			rskd_valid[N] = !rerr_none[N];
 		else
 			rskd_valid[N] = mrgrant[N] && m_axi_rvalid[mrindex[N]];
 
 		always @(*)
-		if (rgrant[N][N_MASTERS])
+		if (rgrant[N][N_MST_PORTS])
 		begin
 			i_axi_rid   = rerr_id[N];
 			i_axi_rdata = 0;
@@ -1936,7 +1936,7 @@ module	axi_interconnect #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	//
-	generate for (N=0; N<N_SLAVES; N=N+1)
+	generate for (N=0; N<N_SLV_PORTS; N=N+1)
 	begin : W7_COUNT_PENDING_WRITES
 	// {{{
 
@@ -2021,7 +2021,7 @@ module	axi_interconnect #(
 	// }}}
 	end endgenerate
 
-	generate for (N=0; N<N_SLAVES; N=N+1)
+	generate for (N=0; N<N_SLV_PORTS; N=N+1)
 	begin : R7_COUNT_PENDING_READS
 	// {{{
 
@@ -2044,9 +2044,9 @@ module	axi_interconnect #(
 			rpending  <= 0;
 			mrempty[N]<= 1;
 			mrfull[N] <= 0;
-		end else case ({(m_arvalid[N] && slave_raccepts[N] && !rgrant[N][N_MASTERS]),
+		end else case ({(m_arvalid[N] && slave_raccepts[N] && !rgrant[N][N_MST_PORTS]),
 				(rskd_valid[N] && rskd_ready[N]
-					&& rskd_rlast[N] && !rgrant[N][N_MASTERS])})
+					&& rskd_rlast[N] && !rgrant[N][N_MST_PORTS])})
 		2'b01: begin
 			rpending      <= rpending - 1;
 			mrempty[N]    <= (rpending == 1);
@@ -2087,7 +2087,7 @@ module	axi_interconnect #(
 				rerr_last[N] <= (rerr_outstanding[N] == 2);
 				rerr_outstanding[N] <= rerr_outstanding[N] - 1;
 			end
-		end else if (m_arvalid[N] && rrequest[N][N_MASTERS]
+		end else if (m_arvalid[N] && rrequest[N][N_MST_PORTS]
 						&& slave_raccepts[N])
 		begin
 			rerr_none[N] <= 0;
@@ -2104,7 +2104,7 @@ module	axi_interconnect #(
 			rerr_id[N] <= 0;
 		else if (m_arvalid[N] && slave_raccepts[N])
 		begin
-			if (rrequest[N][N_MASTERS] || !OPT_LOWPOWER)
+			if (rrequest[N][N_MST_PORTS] || !OPT_LOWPOWER)
 				// A low-logic definition
 				rerr_id[N] <= m_arid[N];
 			else
@@ -2135,12 +2135,12 @@ module	axi_interconnect #(
 	//
 	//
 	initial begin
-		if (N_SLAVES == 0) begin
+		if (N_SLV_PORTS == 0) begin
                         $display("At least one master must be defined");
                         $stop;
                 end
 
-		if (N_MASTERS == 0) begin
+		if (N_MST_PORTS == 0) begin
                         $display("At least one slave must be defined");
                         $stop;
                 end
@@ -2175,27 +2175,27 @@ module	axi_interconnect #(
 	//
 	// Initial/reset value checking
 	// {{{
-	initial	assert(N_MASTERS >= 1);
-	initial	assert(N_SLAVES >= 1);
+	initial	assert(N_MST_PORTS >= 1);
+	initial	assert(N_SLV_PORTS >= 1);
 	// }}}
 
 	////////////////////////////////////////////////////////////////////////
 	//
 	// Check the arbiter signals for consistency
 	// {{{
-	generate for(N=0; N<N_SLAVES; N=N+1)
+	generate for(N=0; N<N_SLV_PORTS; N=N+1)
 	begin : F1_CHECK_MASTER_GRANTS
 	// {{{
 		// Write grants
 		always @(*)
-		for(iM=0; iM<=N_MASTERS; iM=iM+1)
+		for(iM=0; iM<=N_MST_PORTS; iM=iM+1)
 		begin
 			if (wgrant[N][iM])
 			begin
 				assert((wgrant[N] ^ (1<<iM))==0);
 				assert(mwgrant[N]);
 				assert(mwindex[N] == iM);
-				if (iM < N_MASTERS)
+				if (iM < N_MST_PORTS)
 				begin
 					assert(swgrant[iM]);
 					assert(swindex[iM] == N);
@@ -2208,8 +2208,8 @@ module	axi_interconnect #(
 			assert(wgrant[N] != 0);
 
 		always @(*)
-		if (wrequest[N][N_MASTERS])
-			assert(wrequest[N][N_MASTERS-1:0] == 0);
+		if (wrequest[N][N_MST_PORTS])
+			assert(wrequest[N][N_MST_PORTS-1:0] == 0);
 
 
 		always @(posedge S_AXI_ACLK)
@@ -2224,14 +2224,14 @@ module	axi_interconnect #(
 		// Read grant checking
 		//
 		always @(*)
-		for(iM=0; iM<=N_MASTERS; iM=iM+1)
+		for(iM=0; iM<=N_MST_PORTS; iM=iM+1)
 		begin
 			if (rgrant[N][iM])
 			begin
 				assert((rgrant[N] ^ (1<<iM))==0);
 				assert(mrgrant[N]);
 				assert(mrindex[N] == iM);
-				if (iM < N_MASTERS)
+				if (iM < N_MST_PORTS)
 				begin
 					assert(srgrant[iM]);
 					assert(srindex[iM] == N);
@@ -2248,7 +2248,7 @@ module	axi_interconnect #(
 		begin
 			assert($stable(rgrant[N]));
 			assert($stable(mrindex[N]));
-			if (!rgrant[N][N_MASTERS])
+			if (!rgrant[N][N_MST_PORTS])
 				assert(!mrempty[N]);
 		end
 	// }}}
@@ -2260,7 +2260,7 @@ module	axi_interconnect #(
 	// {{{
 	////////////////////////////////////////////////////////////////////////
 	//
-	generate for(N=0; N<N_SLAVES; N=N+1)
+	generate for(N=0; N<N_SLV_PORTS; N=N+1)
 	begin : F2_CHECK_MASTERS
 	// {{{
 		faxi_slave #(
@@ -2352,7 +2352,7 @@ module	axi_interconnect #(
 	// {{{
 	////////////////////////////////////////////////////////////////////////
 	//
-	generate for(M=0; M<N_MASTERS; M=M+1)
+	generate for(M=0; M<N_MST_PORTS; M=M+1)
 	begin : F3_CHECK_SLAVES
 	// {{{
 		faxi_master #(
@@ -2444,7 +2444,7 @@ module	axi_interconnect #(
 	// {{{
 	////////////////////////////////////////////////////////////////////////
 	//
-	generate for(N=0; N<N_SLAVES; N=N+1)
+	generate for(N=0; N<N_SLV_PORTS; N=N+1)
 	begin : // ...
 	// {{{
 	// }}}
@@ -2457,7 +2457,7 @@ module	axi_interconnect #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	//
-	generate for(N=0; N<N_SLAVES; N=N+1)
+	generate for(N=0; N<N_SLV_PORTS; N=N+1)
 	begin : F4_DOUBLE_BUFFER_CHECKS
 	// {{{
 	// ...
@@ -2472,7 +2472,7 @@ module	axi_interconnect #(
 	//
 	// Can every master reach every slave?
 	// Can things transition without dropping the request line(s)?
-	generate for(N=0; N<N_SLAVES; N=N+1)
+	generate for(N=0; N<N_SLV_PORTS; N=N+1)
 	begin : F5_COVER_CONNECTIVITY_FROM_MASTER
 	// {{{
 	// ...
@@ -2534,7 +2534,7 @@ module	axi_interconnect #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	//
-	generate for(N=0; N<N_SLAVES; N=N+1)
+	generate for(N=0; N<N_SLV_PORTS; N=N+1)
 	begin : F6_LIMITING_ASSUMPTIONS
 
 		if (!OPT_WRITES)

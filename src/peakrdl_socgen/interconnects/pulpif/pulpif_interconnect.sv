@@ -17,51 +17,51 @@
  * - Host (master) arbitration is strictly priority based.
  */
 module pulpif_interconnect #(
-  parameter int N_MASTERS    = 1,
-  parameter int N_SLAVES      = 1,
+  parameter int N_MST_PORTS    = 1,
+  parameter int N_SLV_PORTS      = 1,
   parameter int DATA_WIDTH    = 32,
   parameter int ADDR_WIDTH = 32,
 
   parameter STRB_WIDTH = DATA_WIDTH/8,
 
-  parameter [N_MASTERS*ADDR_WIDTH-1:0] SLAVE_ADDR,
-  parameter [N_MASTERS*ADDR_WIDTH-1:0] SLAVE_MASK
+  parameter [N_MST_PORTS*ADDR_WIDTH-1:0] SLAVE_ADDR,
+  parameter [N_MST_PORTS*ADDR_WIDTH-1:0] SLAVE_MASK
 
 ) (
   input                           clk_i,
   input                           rst_ni,
 
   // Hosts (masters)
-input  [N_SLAVES-1:0]                host_req,
-output reg [N_SLAVES-1:0]            host_gnt,
-input  [N_SLAVES*ADDR_WIDTH-1:0]     host_addr,
-input  [N_SLAVES-1:0]                host_we,
-input  [N_SLAVES*STRB_WIDTH-1:0]     host_be,
-input  [N_SLAVES*DATA_WIDTH-1:0]     host_wdata,
-input  [N_SLAVES*8-1:0]              host_wdata_intg,
-output reg [N_SLAVES-1:0]            host_rvalid,
-output reg [N_SLAVES*DATA_WIDTH-1:0] host_rdata,
-output [N_SLAVES*8-1:0]              host_rdata_intg,
-output reg [N_SLAVES-1:0]            host_err,
+input  [N_SLV_PORTS-1:0]                host_req,
+output reg [N_SLV_PORTS-1:0]            host_gnt,
+input  [N_SLV_PORTS*ADDR_WIDTH-1:0]     host_addr,
+input  [N_SLV_PORTS-1:0]                host_we,
+input  [N_SLV_PORTS*STRB_WIDTH-1:0]     host_be,
+input  [N_SLV_PORTS*DATA_WIDTH-1:0]     host_wdata,
+input  [N_SLV_PORTS*8-1:0]              host_wdata_intg,
+output reg [N_SLV_PORTS-1:0]            host_rvalid,
+output reg [N_SLV_PORTS*DATA_WIDTH-1:0] host_rdata,
+output [N_SLV_PORTS*8-1:0]              host_rdata_intg,
+output reg [N_SLV_PORTS-1:0]            host_err,
 
  //    Devices                    (slaves)
-output reg [N_MASTERS-1:0]            device_req,
-input  [N_MASTERS-1:0]                device_gnt,
-output reg [N_MASTERS*ADDR_WIDTH-1:0] device_addr,
-output reg [N_MASTERS-1:0]            device_we,
-output reg [N_MASTERS*STRB_WIDTH-1:0] device_be,
-output reg [N_MASTERS*DATA_WIDTH-1:0] device_wdata,
-output [N_MASTERS*8-1:0]              device_wdata_intg,
-input  [N_MASTERS-1:0]                device_rvalid,
-input  [N_MASTERS*DATA_WIDTH-1:0]     device_rdata,
-input  [N_MASTERS*8-1:0]              device_rdata_intg,
-input  [N_MASTERS-1:0]                device_err
+output reg [N_MST_PORTS-1:0]            device_req,
+input  [N_MST_PORTS-1:0]                device_gnt,
+output reg [N_MST_PORTS*ADDR_WIDTH-1:0] device_addr,
+output reg [N_MST_PORTS-1:0]            device_we,
+output reg [N_MST_PORTS*STRB_WIDTH-1:0] device_be,
+output reg [N_MST_PORTS*DATA_WIDTH-1:0] device_wdata,
+output [N_MST_PORTS*8-1:0]              device_wdata_intg,
+input  [N_MST_PORTS-1:0]                device_rvalid,
+input  [N_MST_PORTS*DATA_WIDTH-1:0]     device_rdata,
+input  [N_MST_PORTS*8-1:0]              device_rdata_intg,
+input  [N_MST_PORTS-1:0]                device_err
 
   // Device address map
 );
 
-  localparam int unsigned NumBitsHostSel = N_SLAVES > 1 ? $clog2(N_SLAVES) : 1;
-  localparam int unsigned NumBitsDeviceSel = N_MASTERS > 1 ? $clog2(N_MASTERS) : 1;
+  localparam int unsigned NumBitsHostSel = N_SLV_PORTS > 1 ? $clog2(N_SLV_PORTS) : 1;
+  localparam int unsigned NumBitsDeviceSel = N_MST_PORTS > 1 ? $clog2(N_MST_PORTS) : 1;
 
   logic [NumBitsHostSel-1:0] host_sel_req, host_sel_resp;
   logic [NumBitsDeviceSel-1:0] device_sel_req, device_sel_resp;
@@ -69,7 +69,7 @@ input  [N_MASTERS-1:0]                device_err
   // Master select prio arbiter
   always_comb begin
     host_sel_req = '0;
-    for (integer host = N_SLAVES - 1; host >= 0; host = host - 1) begin
+    for (integer host = N_SLV_PORTS - 1; host >= 0; host = host - 1) begin
       if (host_req[host]) begin
         host_sel_req = NumBitsHostSel'(host);
       end
@@ -79,7 +79,7 @@ input  [N_MASTERS-1:0]                device_err
   // Device select
   always_comb begin
     device_sel_req = '0;
-    for (integer device = 0; device < N_MASTERS; device = device + 1) begin
+    for (integer device = 0; device < N_MST_PORTS; device = device + 1) begin
       if ((host_addr[host_sel_req*ADDR_WIDTH +: ADDR_WIDTH] & SLAVE_MASK[device*ADDR_WIDTH +: ADDR_WIDTH])
           == SLAVE_ADDR[device*ADDR_WIDTH +: ADDR_WIDTH]) begin
           /* == cfg_device_addr_base[device]) begin */
@@ -100,7 +100,7 @@ input  [N_MASTERS-1:0]                device_err
   end
 
   always_comb begin
-    for (integer device = 0; device < N_MASTERS; device = device + 1) begin
+    for (integer device = 0; device < N_MST_PORTS; device = device + 1) begin
       if (NumBitsDeviceSel'(device) == device_sel_req) begin
         device_req[device]                            = host_req[host_sel_req];
         device_we[device]                             = host_we[host_sel_req];
@@ -118,7 +118,7 @@ input  [N_MASTERS-1:0]                device_err
   end
 
   always_comb begin
-    for (integer host = 0; host < N_SLAVES; host = host + 1) begin
+    for (integer host = 0; host < N_SLV_PORTS; host = host + 1) begin
       host_gnt[host] = 1'b0;
       if (NumBitsHostSel'(host) == host_sel_resp) begin
         host_rvalid[host]                         = device_rvalid[device_sel_resp];

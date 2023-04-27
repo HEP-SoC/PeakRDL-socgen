@@ -1,5 +1,5 @@
 addrmap apb_interconnect #(
-    longint unsigned N_SLAVES = 1,
+    longint unsigned N_MST_PORTS = 1,
     longint unsigned DATA_WIDTH = 32,
     longint unsigned ADDR_WIDTH = 32,
 
@@ -14,7 +14,7 @@ addrmap apb_interconnect #(
 
     apb_intf #(
         .INTF(intf_t'{name:"apb_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"m_", modport:Modport::master }),
-        .N(N_SLAVES)
+        .N(N_MST_PORTS)
         )  m_;
 
     reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;

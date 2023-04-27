@@ -1,6 +1,6 @@
 addrmap pulpif_interconnect #(
-    longint unsigned N_SLAVES = 2,
-    longint unsigned N_MASTERS = 2,
+    longint unsigned N_SLV_PORTS = 1,
+    longint unsigned N_MST_PORTS = 1,
     longint unsigned DATA_WIDTH = 32,
     longint unsigned ADDR_WIDTH = 32,
 
@@ -13,12 +13,12 @@ addrmap pulpif_interconnect #(
 
     pulpif_intf #(
         .INTF(intf_t'{name:"pulpif_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"host_", modport:Modport::slave }),
-        .N(N_SLAVES)
+        .N(N_SLV_PORTS)
         )  host_;
 
     pulpif_intf #(
         .INTF(intf_t'{name:"pulpif_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"device_", modport:Modport::master }),
-        .N(N_MASTERS)
+        .N(N_MST_PORTS)
         )  device_;
 
 

@@ -66,12 +66,12 @@ class Intc(Module):
         intc_name = self.type_name
 
         param_values = {
-                'N_SLAVES'   : len(self.ext_slv_intfs),
+                'N_MST_PORTS'   : len(self.ext_mst_intfs),
                 'DATA_WIDTH' : max(intc_params['data_w'], intc_params['data_w']),
                 'ADDR_WIDTH' : max(intc_params['addr_w'], intc_params['addr_w']),
                 }
-        if len(self.ext_mst_intfs) > 1:
-            param_values['N_MASTERS'] = len(self.ext_mst_intfs)
+        if len(self.ext_slv_intfs) > 1:
+            param_values['N_SLV_PORTS'] = len(self.ext_slv_intfs)
 
         mmap_params = self.get_intc_mmap_type(intc_name)
         if mmap_params is not None:

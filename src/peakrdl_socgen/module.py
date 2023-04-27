@@ -28,7 +28,11 @@ class Module:
             return self.node.inst_name
 
     def getSignals(self):
-        return [Signal(s) for s in self.node.signals()]
+        signals =[]
+        for s in self.node.signals():
+            if s.get_property("input") or s.get_property("output") or s.get_property("signal_type"):
+                signals.append(Signal(s))
+        return signals
 
     def getClkOrRst(self, s : Signal):
         if s.isClk():
