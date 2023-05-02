@@ -114,7 +114,6 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         modules = []
         for node in self.getAddrmaps():
             if node.get_property('subsystem'):
-                print(node.get_path())
                 modules.append(Subsystem(node, self.rdlc))
             else:
                 modules.append(Module(node, self.rdlc))

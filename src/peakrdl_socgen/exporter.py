@@ -11,6 +11,7 @@ class SocExporter():
     def __init__(self):
         self.subsystem_template_dir = "subsystem"
         self.common_rdl_f = os.path.join(os.path.dirname(__file__), "rdl", "common.rdl")
+        self.intc_wrap_rdl_f = os.path.join(os.path.dirname(__file__), "rdl", "interconnect_wrap.rdl")
 
         # self.subsystem = Subsystem()
 
@@ -34,6 +35,7 @@ class SocExporter():
             ):
         rdlc = RDLCompiler()
         rdlc.compile_file(self.common_rdl_f)
+        rdlc.compile_file(self.intc_wrap_rdl_f)
         for input_file in b_files:
             rdlc.compile_file(input_file)
             root = rdlc.elaborate()

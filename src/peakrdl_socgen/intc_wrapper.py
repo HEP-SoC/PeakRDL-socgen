@@ -39,8 +39,6 @@ class IntcWrapper(Module):
         self.adapters = []
         self.intc = self.create_intc()
 
-        # print(self.adapters)
-
 
     @property
     def intfsNeedAdapter(self):
@@ -170,85 +168,8 @@ class IntcWrapper(Module):
                 self.adapters.append(Adapter(adapt_from=self.adapters[-1].adapt_to, adapt_to=intf, rdlc=self.rdlc))
 
 
-                # print("Adapt_from: ", intf.name, " Adapt to: ", adapt_to.name)
-                # intf.print()
-                # adapt_to.print()
-
-            pass
-
-
         assert len(adapter_paths) > 0, f"Could not find appropriate adapter or combination for {intf.name} modport: {intf.modport} and {intc_intf.name}"
 
-
-        # if adapter_name not in available_adapters:
-        #     print("Could not find, try to combine", adapter_name)
-        #     fitting_slaves = []
-        #     fitting_masters = []
-        #     for a in available_adapters:
-        #         if a.split("2")[0] == adapter_name.split("2")[0]: # type: ignore
-        #             fitting_slaves.append(a)
-        #
-        #         if a.split("2")[1] == adapter_name.split("2")[1]: # type: ignore
-        #             fitting_masters.append(a)
-        #     
-        #     adapter_paths = []
-        #     for slv in fitting_slaves:
-        #         for mst in fitting_masters:
-        #             if slv.split("2")[1] == mst.split("2")[0]:
-        #                 adapter_paths.append([slv, mst])
-        #
-        #     assert len(adapter_paths) > 0, f"Could not find appropriate adapter or combination for {intf.name} modport: {intf.modport} and {intc.intf_type_name}"
-        #             
-        #     adapters = []
-        #     # return [self.create_adapter(intf, intc) for ]
-        #     return adapter_paths[0]
-        #
-        # assert adapter_name is not None, f"Could not find appropriate adapter or combination for {intf.name} modport: {intf.modport} and {intc.intf_type_name}"
-        # return [self.create_adapter(intf, intc)]
-
-        
-    # def create_adapter(self, intf: Intf, intc : "IntcBase") -> "Adapter":
-    #     return Adapter(intf, intc, self.rdlc)
-
-    # def create_adapters(self) -> List["Adapter"]:
-        # intfs_need_adapter = [intf for intf in self.intfs if intf.name != intc.intf_type_name]
-        
-        # for intf in self.intfsNeedAdapter:
-        #     intf.print()
-
-        # adapter_names = [self.findFittingAdapter(intf, intc) for intf in intfs_need_adapter]
-        # print(adapter_names)
-        #
-        # adapters = []
-        # for intf in self.intfs:
-        #     print(intf.name)
-        #     try:
-        #         adapter = Adapter(intf, intc, self.rdlc)
-        #     except InvalidAdapter:
-        #         adapter = None
-        #         pass
-        #     if adapter is not None:
-        #         adapters.append(adapter)
-        # return adapters
-     
-    # def create_adapter(self,
-    #         ports : Tuple(Intf, Intf)
-    #         ):
-        # if intf.name != intc.intf_type_name:
-        #     adapter_name = ""
-        #     if intf.modport == IntfModport.MASTER:
-        #         adapter_name = intc.intf_type_name.replace("_intf", "") + "2" + intf.name.replace("_intf", "")
-        #     elif intf.modport == IntfModport.SLAVE:
-        #         adapter_name = intf.name.replace("_intf", "") + "2" + intc.intf_type_name.replace("_intf", "")
-        #
-        #     adapter = self.rdlc.elaborate(
-        #             top_def_name=adapter_name,
-        #             inst_name= adapter_name,
-        #             ).get_child_by_name(adapter_name)
-        #
-        #     return adapter
-        #
-        # raise InvalidAdapter
 
     def getIntcWidths(self) -> tuple[int, int]:
         max_dataw = max([*self.ext_slv_intfs, *self.ext_mst_intfs], key=lambda intf: intf.data_width).data_width

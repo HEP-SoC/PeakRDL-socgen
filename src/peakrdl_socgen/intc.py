@@ -39,11 +39,6 @@ class Intc(Module):
 
         super().__init__(self.node, self.rdlc)
 
-        # for i in self.ext_slv_intfs:
-        #     i.print()
-
-    # def get_intfs(self):
-    #     return [self.getSlaveIntf(), self.getMasterIntf()]
 
     def isDriver(self, s : Signal, intf : Intf):
         if intf in self.ext_slv_intfs:
