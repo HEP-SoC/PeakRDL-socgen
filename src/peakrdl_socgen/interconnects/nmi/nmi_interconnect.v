@@ -9,22 +9,22 @@ module nmi_interconnect #(
     parameter WSTRB_WIDTH = (DATA_WIDTH-1)/8+1 // 4 bits for 32 data
 
     )(
-    input      s_nmi_valid,
-    input      s_nmi_instr,
+    input wire s_nmi_valid,
+    input wire s_nmi_instr,
     output reg s_nmi_ready,
-    input      [ADDR_WIDTH-1:0]  s_nmi_addr,
-    input      [DATA_WIDTH-1:0]  s_nmi_wdata,
-    input      [WSTRB_WIDTH-1:0] s_nmi_wstrb,
+    input wire [ADDR_WIDTH-1:0]  s_nmi_addr,
+    input wire [DATA_WIDTH-1:0]  s_nmi_wdata,
+    input wire [WSTRB_WIDTH-1:0] s_nmi_wstrb,
     output reg     [DATA_WIDTH-1:0]  s_nmi_rdata,
 
     output reg  [N_MST_PORTS-1:0] m_nmi_valid,
-    output      m_nmi_instr,
-    input       [N_MST_PORTS-1:0] m_nmi_ready,
+    output wire m_nmi_instr,
+    input  wire [N_MST_PORTS-1:0] m_nmi_ready,
 
-    output      [ADDR_WIDTH-1:0]  m_nmi_addr,
-    output      [DATA_WIDTH-1:0]  m_nmi_wdata,
-    output      [WSTRB_WIDTH-1:0] m_nmi_wstrb,
-    input       [N_MST_PORTS*DATA_WIDTH-1:0]  m_nmi_rdata
+    output wire [ADDR_WIDTH-1:0]  m_nmi_addr,
+    output wire [DATA_WIDTH-1:0]  m_nmi_wdata,
+    output wire [WSTRB_WIDTH-1:0] m_nmi_wstrb,
+    input  wire [N_MST_PORTS*DATA_WIDTH-1:0]  m_nmi_rdata
 
     
     );
