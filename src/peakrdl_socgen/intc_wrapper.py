@@ -21,11 +21,13 @@ class IntcWrapper(Module):
             ext_slv_intfs : List[Intf],
             ext_mst_intfs : List[Intf],
             ext_connections : List[Tuple[Intf, Intf]],
+            name : str|None = None
             ):
         self.rdlc = rdlc
         self.isIntcWrap = True
         self.parent_node = subsystem_node.node
         self.subsystem_node = subsystem_node
+        self.name = name
 
         self.ext_slv_intfs = ext_slv_intfs
         self.ext_mst_intfs = ext_mst_intfs
@@ -220,11 +222,16 @@ class IntcWrapper(Module):
         params = params + r"}"
         override_params = self.rdlc.eval(params)
 
+        if self.name is None:
+            name = self.parent_node.inst_name + "_intc_wrap"
+        else:
+            name = self.name + "_intc_wrap"
+
         new_intc = self.rdlc.elaborate(
                 top_def_name="interconnect_wrap",
-                inst_name= self.parent_node.inst_name + "_intc_wrap",
+                inst_name=name,
                 parameters= {'INTF': override_params},
-                ).get_child_by_name(self.parent_node.inst_name + "_intc_wrap")
+                ).get_child_by_name(name)
 
         return new_intc
 

@@ -1,3 +1,4 @@
+from sys import intern
 from systemrdl import RDLCompiler, RDLListener
 from systemrdl.node import Node, AddrmapNode
 from typing import List
@@ -42,15 +43,21 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         self.signals = self.inheritSignals()
         self.connections = self.getConnections()
 
-        self.intc_wrap = IntcWrapper(
-                rdlc=rdlc,
-                subsystem_node=self,
-                ext_slv_intfs=self.getStartpoints(),
-                ext_mst_intfs=self.getEndpoints(),
-                ext_connections=self.connections,
-                )
+        self.startpoints = self.getStartpoints()
+        self.endpoints = self.getEndpoints()
 
-        self.modules.append(self.intc_wrap)
+        self.intc_wraps = self.getUserDefinedIntcws()
+
+        if len(self.startpoints ) > 0 and len(self.endpoints) > 0:
+            self.intc_wraps.append(IntcWrapper(
+                    rdlc=rdlc,
+                    subsystem_node=self,
+                    ext_slv_intfs=self.startpoints,
+                    ext_mst_intfs=self.endpoints,
+                    ext_connections=self.connections,
+                    ))
+
+        self.modules.extend(self.intc_wraps)
 
     def inheritSignals(self):
         signals = []
@@ -90,10 +97,16 @@ class Subsystem(Module): # TODO is module and subsystem the same?
 
     def getConnections(self):
         conn_p = self.node.get_property("connections", default = [])
-        assert len(conn_p) % 2 == 0, f"Connections need to be in pair, got {conn_p}"
+
+        conns = []
+        for conn in conn_p:
+            assert len(conn.split("->")) == 2, f"Wrong format for connection {conn}"
+            conn = conn.split("->")
+            conns.append((conn[0].replace(" ", ""), conn[1].replace(" ", "")))
 
         connections = []
-        for first, second in zip(conn_p[::2], conn_p[1::2]):
+        for first, second in conns:
+        # for first, second in zip(conn_p.split())
             conn_ifs = (None, None)
             for i in self.getChildIntfs():
                 node_rel = i.parent_node.get_path().replace(self.node.get_path(), "")
@@ -109,6 +122,51 @@ class Subsystem(Module): # TODO is module and subsystem the same?
             connections.append(conn_ifs)
 
         return connections
+
+    def getUserDefinedIntcws(self):
+        intcws = []
+        intcw_l = self.node.get_property('intcw_l', default=[])
+
+        intcw_dict = {}
+        for intcw in intcw_l:
+            ext_mst_ports = []
+            ext_slv_ports = []
+
+            for mst in intcw.mst_ports:
+                intf = self.getIntfFromString(mst)
+                if intf in self.endpoints:
+                    self.endpoints.remove(intf)
+                ext_mst_ports.append(intf)
+
+            for slv in intcw.slv_ports:
+                intf = self.getIntfFromString(slv)
+                if intf in self.startpoints:
+                    self.startpoints.remove(intf)
+                ext_slv_ports.append(intf)
+
+            intcws.append(
+                    IntcWrapper(
+                        rdlc=self.rdlc,
+                        subsystem_node=self,
+                        ext_slv_intfs=ext_slv_ports,
+                        ext_mst_intfs=ext_mst_ports,
+                        ext_connections=[],
+                        name=intcw.name,
+                        )
+                    )
+
+            intcw_dict[intcw.name] = {'ext_slv_ports' : ext_slv_ports, 'ext_mst_ports' : ext_mst_ports}
+
+        return intcws
+
+
+    def getIntfFromString(self, string : str):
+        for intf in self.getChildIntfs():
+            node_rel = intf.parent_node.get_path().replace(self.node.get_path(), "")
+            node_rel = node_rel[1:] if node_rel.startswith('.') else node_rel
+            if (node_rel + "." + intf.sig_prefix) == string:
+                return intf
+        assert False, f"Could not find interface {string}"
 
     def getModules(self):
         modules = []

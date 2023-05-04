@@ -1,5 +1,5 @@
 from typing import  Dict, Any
-from systemrdl import  RDLCompiler, RDLWalker
+from systemrdl import  AddrmapNode, RDLCompiler, RDLWalker
 from systemrdl.node import  Node, RootNode
 from typing import List, Union
 import os
@@ -28,6 +28,12 @@ class SocExporter():
 
         out_files = [os.path.join(outdir, getOrigTypeName(s) + ".v") for s in subsystems] # TODO make sure name is correct
         out_files += [os.path.join(outdir, getOrigTypeName(s) + "_intc_wrap.v") for s in subsystems] # TODO make sure name is correct
+        for subs in subsystems:
+            assert isinstance(subs, AddrmapNode)
+            for intcw in subs.get_property("intcw_l", default=[]):
+                out_files += [os.path.join(outdir, intcw.name + "_intc_wrap.v")]
+
+
         print(*out_files) # Print files to stdout
 
     def compile_glue(self,
@@ -96,20 +102,21 @@ class SocExporter():
                 f.write(text)
 
         for subsys in subsystems:
-            context = {
-                    'intcw' : subsys.intc_wrap 
-                    }
-            text = self.process_template(context, "intc_wrap.j2")
+            for intcw in subsys.intc_wraps:
+                context = {
+                        'intcw' : intcw 
+                        }
+                text = self.process_template(context, "intc_wrap.j2")
 
-            out_file = os.path.join(outdir, subsys.intc_wrap.getOrigTypeName() + ".v")
-            with open(out_file, 'w') as f:
-                f.write(text)
+                out_file = os.path.join(outdir, intcw.getOrigTypeName() + ".v")
+                with open(out_file, 'w') as f:
+                    f.write(text)
 
-        text = self.process_dot_template({'subsys': subsystems[0]})
+            # text = self.process_dot_template({'subsys': subsystems[0]})
 
-        out_file = os.path.join(outdir, subsystems[0].node.inst_name + ".dot")
-        with open(out_file, 'w') as f:
-            f.write(text)
+            # out_file = os.path.join(outdir, subsystems[0].node.inst_name + ".dot")
+            # with open(out_file, 'w') as f:
+            #     f.write(text)
 
     def process_template(self, context : dict, template : str) -> str:
 
