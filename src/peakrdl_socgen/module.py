@@ -91,7 +91,7 @@ class Module:
 
     def isHwParam(self, param : Parameter):
         # if param.param_type == str and param.name == "INIT_FILE":
-        if param.param_type == str and (param.name == "INIT_FILE" or param.name == "FIRMWARE_TEXT_FILE" or param.name == "FIRMWARE_DATA_FILE" ): # TODO
+        if param.param_type == str and param.name.startswith("SOCGEN_"):
         # if param.param_type == str:
             return True
 
