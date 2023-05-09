@@ -35,6 +35,9 @@ class IntcWrapper(Module):
         assert isinstance(intc_node, AddrmapNode)
         super().__init__(intc_node, self.rdlc)
 
+        for sig in self.signals: # TODO, maybe solve it in instantiation insted of this hack, problem is clk and reset with multiple intc wrappers
+            sig.prefix = self.node.inst_name + "_" + sig.prefix 
+
         self.connections = self.createConnectionIntfs(ext_connections)
         self.assignOriginalIntfs()
 
