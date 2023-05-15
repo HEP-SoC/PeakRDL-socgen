@@ -1,0 +1,150 @@
+module {{ intcw.getOrigTypeName() }}(
+{% for s in intcw.signals %} {# TODO DIRECTION #}
+    {{ s.verilogType }} {{ s.name }},  
+{% endfor %}
+
+{% for intf in intcw.intfs %}
+    {% set last_intf = loop.last %}
+    // Intf: {{ intf.sig_prefix }}{{ intf.name }}
+    {% for s in intf.signals %}
+    {% set last_sig = loop.last %}
+    {{ intf.getSignalVerilogType(s) }} [{{ s.width-1 }}:0] {{ s.name }}{% if not (last_sig and last_intf) %}, {% endif %}
+
+    {% endfor %}
+{% endfor %}
+
+);
+
+{% for module in intcw.adapters + [intcw.intc] %} {# TODO add interconnects #}
+{% for s in module.signals %}
+{% if s.is_clk %}
+    wire   {{ module.getSigVerilogName(s) }};
+    assign {{ module.getSigVerilogName(s) }} = {{ intcw.getClkOrRst(s).name }}; 
+{% endif %}
+{% if s.is_rst %}
+    {% set rst_sig = intcw.getClkOrRst(s) %}
+    wire   {{ module.getSigVerilogName(s) }};
+    assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh != rst_sig.activehigh %}!{% endif %}{{ rst_sig.name }}; 
+{% endif %}
+{% endfor %}
+
+{% endfor %}
+
+/*======================================================================================== 
+*===================== Adapters ==========================================================
+*========================================================================================*/
+
+{% for intf in intcw.getAdaptersGlueIntfs() %}
+    {% for s in intf.signals %}
+    wire [{{ s.width - 1 }}:0] {{ s.name }};
+    {% endfor %}
+
+{% endfor %}
+
+{% for adapter in intcw.adapters %}
+    // Instantiate {{ adapter.node.get_path() }}
+    {% set params = adapter.getHdlParameters() %}
+    {{ adapter.getOrigTypeName() }} {% if params|length > 0 %}#(
+        {% for param in params %}
+            .{{ param['name'] }}({{ param['value'] }}){% if not loop.last %}, {% endif %}
+
+        {% endfor %}
+        ) {% endif %}{{ adapter.node.inst_name }} (
+        {% for s in adapter.signals %}
+            .{{ s.name }}({{ adapter.getSigVerilogName(s) }}),
+        {% endfor %}
+        {% for s in adapter.adapt_from.signals %}
+            .{{ adapter.getLeftIntf().findSignal(s.basename).name }} ({{ s.name }}),
+        {% endfor %}
+
+        {% for s in adapter.adapt_to.signals %}
+            .{{ adapter.getRightIntf().findSignal(s.basename).name }} ({{ s.name }}){% if not loop.last %}, {% endif %}
+
+        {% endfor %}
+    );
+{% endfor %}
+
+
+/*======================================================================================== TODO different Widths
+*===================== Interconnect ports ================================================
+*========================================================================================*/
+
+{% for intf in intcw.intc.intfs %}
+    {% for s in intf.signals %}
+    wire [{{ s.width - 1 }}:0] {{ intcw.intc.getSigVerilogName(s) }};
+    {% endfor %}
+
+{% endfor %}
+
+/*========================================================================================
+*===================== Interconnect instantiations =======================================
+*========================================================================================*/
+
+
+// Instantiate interconnect {{ intcw.intc.node.inst_name }}
+    {% set intc_params = intcw.intc.getHdlParameters() %}
+    {{ intcw.intc.node.orig_type_name }}{% if intc_params|length > 0 %} #(
+        {% for param in intc_params %}
+        .{{ param['name'] }}({{ param['value'] }}){% if not loop.last %}, {% endif %}
+
+        {% endfor %}
+    ) {% endif %} {{ intcw.intc.node.inst_name }} (
+    {% for s in intcw.intc.signals %}
+        .{{ s.name }}({{ intcw.intc.getSigVerilogName(s) }}),
+    {% endfor %}
+    {% for intf in intcw.intc.intfs %}
+        {% set intf_last = loop.last %}
+        {% for s in intf.signals %}
+        .{{ s.name }}({{ intcw.getSigVerilogName(s, intf) }}){% if not (loop.last and intf_last) %}, {% endif %}
+
+        {% endfor %}
+    {% endfor %}
+
+    );
+
+
+/*======================================================================================== TODO different Widths
+*============== Connect Interconnect ports ===============================================
+*========================================================================================*/
+
+// Interconnect slave ports
+{% set intc_slv_port = intcw.intc.getSlaveIntfs()[0] %}
+{% set intc_mst_port = intcw.intc.getMasterIntfs()[0] %}
+{% for intf in intcw.intc.ext_slv_intfs %}
+    {% set intf_idx = loop.index-1 %}
+    {% for s in intf.signals %}
+        {% set sig_idx = (not s.isShared())|int * intf_idx %}
+        {% set intc_s = intc_slv_port.findSignal(s.basename) %}
+        {% if intcw.intc.isDriver(s, intf) %}
+            assign {{ intcw.getSigVerilogName(s, intf) }} = {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] ; 
+        {% else %}
+            assign {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] = {{ intcw.getSigVerilogName(s) }}; 
+        {% endif %}
+    {% endfor %}
+
+{% endfor %}
+
+// Interconnect master ports
+{% for intf in intcw.intc.ext_mst_intfs %}
+    {% set intf_idx = loop.index-1 %}
+    {% for s in intf.signals %}
+        {% set sig_idx = (not s.isShared())|int * intf_idx %}
+        {% set intc_s = intc_mst_port.findSignal(s.basename) %}
+        {% if intcw.intc.isDriver(s, intf) %}
+            assign {{ intcw.getSigVerilogName(s, intf) }} = {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] ; 
+        {% else %}
+            assign {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] = {{ intcw.getSigVerilogName(s, intf) }}; 
+        {% endif %}
+    {% endfor %}
+
+{% endfor %}
+
+// Simple connections
+{% for first, second in intcw.connections %}
+    {% for lhs, rhs in intcw.groupSignals(first, second) %}
+        assign {{ lhs.name }} = {{ rhs.name }};
+    {% endfor %}
+{% endfor %}
+
+endmodule
+

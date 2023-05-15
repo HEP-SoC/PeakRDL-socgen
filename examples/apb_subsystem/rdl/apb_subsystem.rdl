@@ -1,0 +1,28 @@
+addrmap apb_subsystem{
+    name = "APB subsystem";
+    apb_bus apb_bus;
+    subsystem;
+
+    apb_master cpu;
+    // Memories
+    simple_apb_slave #(
+        .MEM_SIZE(1024),
+        .DATA_WIDTH(32),
+        .ADDR_WIDTH(32),
+        .ID(0)
+        ) slave0;
+
+    simple_apb_slave #(
+        .MEM_SIZE(64000),
+        .DATA_WIDTH(32),
+        .ADDR_WIDTH(32),
+        .ID(1)
+        ) slave1;
+
+
+
+        clk clk;
+        rstn rstn;
+
+};
+

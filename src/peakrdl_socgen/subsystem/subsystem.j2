@@ -1,0 +1,78 @@
+{% set subsys_params = subsys.getHdlParameters() %}
+module {{ subsys.getName() }} {% if subsys_params|length > 0 %} #(
+{% for param in subsys_params %}
+    parameter {{ param['name'] }} = {{ param['value'] }}{% if not loop.last%}, {% endif %}
+
+{% endfor %}
+){% endif %}
+(
+{% for s in subsys.signals %}
+    {{ s.verilogType }} {{ s.name }}{% if (not loop.last) or (subsys.intfs|length > 0) %}, {% endif %}
+
+{% endfor %}
+
+{% for intf in subsys.intfs %}
+    {% set last_bus = loop.last %}
+    // Bus: {{ intf.sig_prefix }}{{ intf.name }}
+    {% for s in intf.signals %}
+    {% set last_sig = loop.last %}
+    {{ intf.getSignalVerilogType(s) }} [{{ s.width-1 }}:0] {{ s.name }}{% if not (last_sig and last_bus) %}, {% endif %}
+
+    {% endfor %}
+{% endfor %}
+);
+
+{% for module in subsys.modules %} 
+{% for s in module.signals %}
+{% if s.is_clk %}
+    wire   {{ module.getSigVerilogName(s) }};
+    assign {{ module.getSigVerilogName(s) }} = {{ subsys.getClkOrRst(s).name }}; 
+{% endif %}
+{% if s.is_rst %}
+    {% set rst_sig = subsys.getClkOrRst(s) %}
+    wire   {{ module.getSigVerilogName(s) }};
+    assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh != rst_sig.activehigh %}!{% endif %}{{ rst_sig.name }}; 
+{% endif %}
+{% endfor %}
+
+{% endfor %}
+
+
+/*========================================================================================
+*===================== Instantiate Modules ===============================================
+*========================================================================================*/
+
+{% for module in subsys.modules %}
+    {% if not module.isIntcWrap %}
+    {% for intf in module.intfs %}
+        {% for s in intf.signals %}
+    wire [{{ s.width-1 }}:0] {{ module.node.inst_name }}_{{ s.name }}; // {{ module.node.inst_name }}  {{ intf.name }}
+        {% endfor %}
+    {% endfor %}
+    {% endif %}
+
+    // Instantiate {{ module.node.get_path() }}
+    {% set params = module.getHdlParameters() %}
+    {{ module.getOrigTypeName() }} {% if params|length > 0 %}#(
+        {% for param in params %}
+            .{{ param['name'] }}({{ param['value'] }}){% if not loop.last %}, {% endif %}
+
+        {% endfor %}
+        ) {% endif %}{{ module.node.inst_name }} (
+        {% for s in module.signals %}
+            .{{ s.name }}({{ module.getSigVerilogName(s) }}),
+        {% endfor %}
+        {% for intf in module.intfs %}
+            {% set last_intf = loop.last %}
+            {% for s in intf.signals %}
+            .{{ s.name }}({{ module.getSigVerilogName(s, intf) }}){% if not (loop.last and last_intf) %}, {% endif %}
+
+            {% endfor %}
+        {% endfor %}
+
+    );
+
+{% endfor %}
+
+
+endmodule

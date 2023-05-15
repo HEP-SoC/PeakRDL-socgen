@@ -1,0 +1,44 @@
+addrmap picorv32 #(
+    longint unsigned ENABLE_COUNTERS       = 1,
+    longint unsigned ENABLE_COUNTERS64     = 1,
+    longint unsigned ENABLE_REGS_16_31     = 1,
+    longint unsigned ENABLE_REGS_DUALPORT  = 1,
+    longint unsigned LATCHED_MEM_RDATA     = 0,
+    longint unsigned TWO_STAGE_SHIFT       = 1,
+    longint unsigned BARREL_SHIFTER        = 0,
+    longint unsigned TWO_CYCLE_COMPARE     = 0,    // Vote "alu_out_0_q" if set to 1
+    longint unsigned TWO_CYCLE_ALU         = 0,
+    longint unsigned COMPRESSED_ISA        = 1,    // Default: 0
+    longint unsigned CATCH_MISALIGN        = 1,
+    longint unsigned CATCH_ILLINSN         = 1,    // Vote "decoder_pseudo_trigger_q", "decoder_trigger_q", "instr_ecall_ebreak"if set to 0
+    longint unsigned ENABLE_PCPI           = 0,    // Vote "instr_ecall_ebreak", "pcpi_insn" if set to 1
+    longint unsigned ENABLE_MUL            = 0,    // Vote "instr_ecall_ebreak", "pcpi_insn" if set to 1
+    longint unsigned ENABLE_FAST_MUL       = 0,    // Vote "instr_ecall_ebreak", "pcpi_insn" if set to 1
+    longint unsigned ENABLE_DIV            = 0,    // Vote "instr_ecall_ebreak", "pcpi_insn" if set to 1
+    longint unsigned ENABLE_IRQ            = 1,    // Default: 0
+    longint unsigned ENABLE_IRQ_QREGS      = 1,
+    longint unsigned ENABLE_IRQ_TIMER      = 1,
+    longint unsigned ENABLE_TRACE          = 1,    // Default: 0
+    longint unsigned REGS_INIT_ZERO        = 0,
+    longint unsigned MASKED_IRQ            = 0x00000000,
+    longint unsigned LATCHED_IRQ           = 0xffffffff,
+    longint unsigned PROGADDR_RESET,           // Default: 32'h 0000_0000
+    longint unsigned PROGADDR_IRQ,   // Default: 32'h 0000_0010
+    longint unsigned STACKADDR,       
+
+    base_bus BUS = base_bus'{name:"nmi_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
+
+    )
+    {
+    name = "Picorv32";
+    desc = "Picorv32 processor";
+
+    master;
+    bus_inst = BUS;
+
+    clk clk;
+    rstn rstn;
+
+    reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+};
+

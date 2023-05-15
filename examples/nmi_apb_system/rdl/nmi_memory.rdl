@@ -1,0 +1,24 @@
+addrmap nmi_memory #(
+    longint unsigned ADDR_WIDTH = 32,
+    longint unsigned DATA_WIDTH = 32,
+    longint unsigned MEM_SIZE   = 4096,
+    longint unsigned ID   = 4096,
+    base_bus BUS = base_bus'{name:"nmi_bus", ADDR_WIDTH:32, DATA_WIDTH:32}
+
+    )
+    {
+    name = "NMI memory";
+    desc = "Memory module with NMI (Native Memory Interface) port";
+
+    bus_inst = BUS;
+
+    mem {
+        mementries = MEM_SIZE/(DATA_WIDTH/8);
+        memwidth   = DATA_WIDTH;
+
+    } external memory;
+
+    clk clk;
+    rstn rstn;
+
+};

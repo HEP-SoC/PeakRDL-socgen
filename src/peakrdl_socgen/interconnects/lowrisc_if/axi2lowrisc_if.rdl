@@ -1,0 +1,23 @@
+addrmap axi2lowrisc_if #(
+    longint unsigned DATA_WIDTH = 32,
+    longint unsigned ADDR_WIDTH = 32
+
+    ){
+    adapter;
+
+    axi_intf #(
+        .INTF(intf_cap'{name:"axi_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"S_", modport:Modport::slave, cap:true }),
+        .N(1)
+        )  slave;
+
+    lowrisc_if_intf #(
+        .INTF(intf_cap'{name:"lowrisc_if_intf", DATA_WIDTH:DATA_WIDTH, ADDR_WIDTH:ADDR_WIDTH, prefix:"lowrisc_", modport:Modport::master, cap:false }),
+        .N(1)
+        )  master;
+
+    reg {name = "dummy"; field {sw = r; hw = w;} dummy[1] = 0;} dummy;
+
+    clk S_AXI_ACLK;
+    rstn S_AXI_ARESETN;
+
+};
