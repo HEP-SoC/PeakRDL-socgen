@@ -1,6 +1,6 @@
 module {{ intcw.getOrigTypeName() }}(
 {% for s in intcw.signals %} {# TODO DIRECTION #}
-    {{ s.verilogType }} {{ s.name }},  
+    {{ s.verilogType }} {{ s.name }},
 {% endfor %}
 
 {% for intf in intcw.intfs %}
@@ -8,7 +8,7 @@ module {{ intcw.getOrigTypeName() }}(
     // Intf: {{ intf.sig_prefix }}{{ intf.name }}
     {% for s in intf.signals %}
     {% set last_sig = loop.last %}
-    {{ intf.getSignalVerilogType(s) }} [{{ s.width-1 }}:0] {{ s.name }}{% if not (last_sig and last_intf) %}, {% endif %}
+    {{ intf.getSignalVerilogType(s) }} [{{ s.width-1 }}:0] {{ s.name }}{% if not (last_sig and last_intf) %},{% endif %}
 
     {% endfor %}
 {% endfor %}
@@ -19,18 +19,18 @@ module {{ intcw.getOrigTypeName() }}(
 {% for s in module.signals %}
 {% if s.is_clk %}
     wire   {{ module.getSigVerilogName(s) }};
-    assign {{ module.getSigVerilogName(s) }} = {{ intcw.getClkOrRst(s).name }}; 
+    assign {{ module.getSigVerilogName(s) }} = {{ intcw.getClkOrRst(s).name }};
 {% endif %}
 {% if s.is_rst %}
     {% set rst_sig = intcw.getClkOrRst(s) %}
     wire   {{ module.getSigVerilogName(s) }};
-    assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh != rst_sig.activehigh %}!{% endif %}{{ rst_sig.name }}; 
+    assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh != rst_sig.activehigh %}!{% endif %}{{ rst_sig.name }};
 {% endif %}
 {% endfor %}
 
 {% endfor %}
 
-/*======================================================================================== 
+/*========================================================================================
 *===================== Adapters ==========================================================
 *========================================================================================*/
 
@@ -46,7 +46,7 @@ module {{ intcw.getOrigTypeName() }}(
     {% set params = adapter.getHdlParameters() %}
     {{ adapter.getOrigTypeName() }} {% if params|length > 0 %}#(
         {% for param in params %}
-            .{{ param['name'] }}({{ param['value'] }}){% if not loop.last %}, {% endif %}
+            .{{ param['name'] }}({{ param['value'] }}){% if not loop.last %},{% endif %}
 
         {% endfor %}
         ) {% endif %}{{ adapter.node.inst_name }} (
@@ -58,7 +58,7 @@ module {{ intcw.getOrigTypeName() }}(
         {% endfor %}
 
         {% for s in adapter.adapt_to.signals %}
-            .{{ adapter.getRightIntf().findSignal(s.basename).name }} ({{ s.name }}){% if not loop.last %}, {% endif %}
+            .{{ adapter.getRightIntf().findSignal(s.basename).name }} ({{ s.name }}){% if not loop.last %},{% endif %}
 
         {% endfor %}
     );
@@ -85,7 +85,7 @@ module {{ intcw.getOrigTypeName() }}(
     {% set intc_params = intcw.intc.getHdlParameters() %}
     {{ intcw.intc.node.orig_type_name }}{% if intc_params|length > 0 %} #(
         {% for param in intc_params %}
-        .{{ param['name'] }}({{ param['value'] }}){% if not loop.last %}, {% endif %}
+        .{{ param['name'] }}({{ param['value'] }}){% if not loop.last %},{% endif %}
 
         {% endfor %}
     ) {% endif %} {{ intcw.intc.node.inst_name }} (
@@ -95,7 +95,7 @@ module {{ intcw.getOrigTypeName() }}(
     {% for intf in intcw.intc.intfs %}
         {% set intf_last = loop.last %}
         {% for s in intf.signals %}
-        .{{ s.name }}({{ intcw.getSigVerilogName(s, intf) }}){% if not (loop.last and intf_last) %}, {% endif %}
+        .{{ s.name }}({{ intcw.getSigVerilogName(s, intf) }}){% if not (loop.last and intf_last) %},{% endif %}
 
         {% endfor %}
     {% endfor %}
@@ -116,9 +116,9 @@ module {{ intcw.getOrigTypeName() }}(
         {% set sig_idx = (not s.isShared())|int * intf_idx %}
         {% set intc_s = intc_slv_port.findSignal(s.basename) %}
         {% if intcw.intc.isDriver(s, intf) %}
-            assign {{ intcw.getSigVerilogName(s, intf) }} = {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] ; 
+            assign {{ intcw.getSigVerilogName(s, intf) }} = {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}];
         {% else %}
-            assign {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] = {{ intcw.getSigVerilogName(s) }}; 
+            assign {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] = {{ intcw.getSigVerilogName(s) }};
         {% endif %}
     {% endfor %}
 
@@ -131,9 +131,9 @@ module {{ intcw.getOrigTypeName() }}(
         {% set sig_idx = (not s.isShared())|int * intf_idx %}
         {% set intc_s = intc_mst_port.findSignal(s.basename) %}
         {% if intcw.intc.isDriver(s, intf) %}
-            assign {{ intcw.getSigVerilogName(s, intf) }} = {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] ; 
+            assign {{ intcw.getSigVerilogName(s, intf) }} = {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}];
         {% else %}
-            assign {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] = {{ intcw.getSigVerilogName(s, intf) }}; 
+            assign {{ intcw.intc.getSigVerilogName(intc_s) }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] = {{ intcw.getSigVerilogName(s, intf) }};
         {% endif %}
     {% endfor %}
 
