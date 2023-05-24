@@ -21,7 +21,7 @@ class IntcWrapper(Module):
             ext_slv_intfs : List[Intf],
             ext_mst_intfs : List[Intf],
             ext_connections : List[Tuple[Intf, Intf]],
-            name : str|None = None
+            name : "str|None" = None
             ):
         self.rdlc = rdlc
         self.isIntcWrap = True
@@ -176,12 +176,12 @@ class IntcWrapper(Module):
         assert len(adapter_paths) > 0, f"Could not find appropriate adapter or combination for {intf.name} modport: {intf.modport} and {intc_intf.name}"
 
 
-    def getIntcWidths(self) -> tuple[int, int]:
+    def getIntcWidths(self) -> "tuple[int, int]":
         max_dataw = max([*self.ext_slv_intfs, *self.ext_mst_intfs], key=lambda intf: intf.data_width).data_width
         max_addrw = max([*self.ext_slv_intfs, *self.ext_mst_intfs], key=lambda intf: intf.addr_width).addr_width
         return max_dataw, max_addrw
 
-    def determineIntc(self) -> tuple[str, str]:
+    def determineIntc(self) -> "tuple[str, str]":
         slave_intfs = self.getSlaveIntfs()
         intf_type_cnt = {}
         for intf in slave_intfs:
@@ -265,7 +265,7 @@ class IntcWrapper(Module):
     def getOrigTypeName(self) -> str:
         return self.node.inst_name
 
-    def getSigVerilogName(self, s : Signal, intf : Intf | None = None) -> str:
+    def getSigVerilogName(self, s : Signal, intf : "Intf | None" = None) -> str:
         if intf is None:
             return s.name
         if intf.parent_node == self.node:

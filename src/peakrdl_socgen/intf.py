@@ -178,7 +178,7 @@ def create_intf(
         prefix : str,
         modport : IntfModport,
         capitalize : bool = False,
-        orig_intf  : Intf|None = None,
+        orig_intf  : "Intf|None" = None,
         N : int=1,
         ):
     

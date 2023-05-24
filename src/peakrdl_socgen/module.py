@@ -98,7 +98,7 @@ class Module:
         return isinstance(param.get_value(), int) or \
                (isinstance(param.param_type, ArrayPlaceholder) and param.param_type.element_type == int)
 
-    def getSigVerilogName(self, s : Signal, intf : Intf | None = None) -> str:
+    def getSigVerilogName(self, s : Signal, intf : "Intf | None" = None) -> str:
         return self.node.inst_name + "_" + s.name
 
     def get_intfs(self):
