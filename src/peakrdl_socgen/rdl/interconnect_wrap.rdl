@@ -1,8 +1,8 @@
 addrmap interconnect_wrap #(
-    intf_cap INTF[] = '{intf_cap'{name:"dummy", ADDR_WIDTH:0, DATA_WIDTH:0, prefix:"dummy", modport:Modport::slave, cap:false}}
+    base_intf INTF[] = '{}
     ){
 
-    intfs = INTF;
+    ifports = INTF;
 
 
     clk intcw_clk;

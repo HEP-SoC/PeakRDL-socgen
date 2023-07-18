@@ -1,56 +1,64 @@
-digraph {{ subsys.node.inst_name }} {
+digraph {{ subsystems[0].node.orig_type_name }} {
     graph [rankdir = LR];
     node[shape=Mrecord];
 
-    {% for mod in subsys.dotGraphGetModules() %}
-        {{ mod.node.inst_name }}[height=1, label="{ { {% if false %}{% endif %}
-        {% for intf in mod.getSlaveIntfs() -%}
-            <{{ intf.sig_prefix }}>{{ intf.sig_prefix }}{% if not loop.last %} | {% endif %}
-        {%- endfor -%}
-        } |{{ mod.node.inst_name }} | {
-        {%- for intf in mod.getMasterIntfs() -%}
-            <{{intf.sig_prefix}}>{{ intf.sig_prefix }}{% if not loop.last %} | {% endif %}
-        {%- endfor -%} } } "];
-    {% endfor %}
-
-    subgraph cluster_{{ subsys.intc_wrap.node.inst_name }}{
+    {% for subsys in subsystems %}
+    subgraph cluster_{{ subsys.node.inst_name }}{
         node [style=filled];
-        label = "{{ subsys.intc_wrap.node.inst_name }}";
-        color=blue;
-    {% for mod in subsys.intc_wrap.adapters + [subsys.intc_wrap.intc] %}
-        {{ mod.node.inst_name }}[height=1, label="{ { {% if false %}{% endif %}
-        {% for intf in mod.getSlaveIntfs() -%}
-            <{{ intf.sig_prefix }}>{{ intf.sig_prefix }}{% if not loop.last %} | {% endif %}
-        {%- endfor -%}
-        } |{{ mod.node.inst_name }} | {
-        {%- for intf in mod.getMasterIntfs() -%}
-            <{{intf.sig_prefix}}>{{ intf.sig_prefix }}{% if not loop.last %} | {% endif %}
-        {%- endfor -%} } } "];
+        label = "{{ subsys.node.inst_name }}";
+        color=gray;
+        {% for mod in subsys.getAllModules() %}
+            {% if mod.__class__.__name__ == "Module" and mod.isOnlyMaster %}
+                {% set style = "style=filled fillcolor=coral," %}
+            {% elif mod.__class__.__name__ == "Module" and mod.isOnlySlave %}
+                {% set style = "style=filled fillcolor=lightgreen," %}
+            {% elif mod.__class__.__name__ == "Intc" %}
+                {% set style = "style=filled fillcolor=lightblue," %}
+            {% elif mod.__class__.__name__ == "Subsystem" %}
+                {% set style = "style=filled fillcolor=teal," %}
+            {% elif mod.__class__.__name__ == "Adapter" %}
+                {% set style = "style=filled fillcolor=gainsboro," %}
+            {% endif %}
+            {% if mod.__class__.__name__ == "Subsystem" %}
+                {{ mod.node.get_path()|path_conv }}[height=0.1, width=0.1, shape=point];
+            {% else %}
+                {{ mod.node.get_path()|path_conv }}[height=1, {{ style }} label="{ {% if mod.getSlavePorts()|length > 0 %}{ {% if false %}{% endif %}
+                {% for intf in mod.getSlavePorts() -%}
+                    <{{ intf.getXdotName() }}>{{ intf.getXdotName() }}{% if not loop.last %} | {% endif %}
+                {%- endfor -%}
+                } | {% endif %} {{ mod.node.orig_type_name }}\n\n{{ mod.node.inst_name }} {% if mod.getMasterPorts()|length > 0 %} | {
+                {%- for intf in mod.getMasterPorts() -%}
+                    <{{ intf.getXdotName() }}>{{ intf.getXdotName() }}{% if not loop.last %} | {% endif %}
+                {%- endfor -%} } {% endif %} } "];
+            {% endif %}
+        {% endfor %}
+
+
+        {% for intc in subsys.intcs %}
+            {% for port in intc.get_intfs() %}
+                {% if port.params.modport.name == "master" %}
+            {{ intc.node.get_path()|path_conv }}:{{ port.getXdotName() }} -> {{ port.orig_intf.module.node.get_path()|path_conv }}:{{ port.orig_intf.getXdotName() }};
+                {% else %}
+            {{ port.orig_intf.module.node.get_path()|path_conv }}:{{ port.orig_intf.getXdotName() }} -> {{ intc.node.get_path()|path_conv }}:{{ port.getXdotName() }};
+                {% endif %}
+            {% endfor %}
+
+        {% endfor %}
+        
+        {% for apath in subsys.adapter_paths %}
+            {% set last_mst_port = apath.adapters[0].mst_port %}
+            {% for adapter in apath.adapters %}
+                {% if not loop.first %}
+            {{ last_mst_port.module.node.get_path()|path_conv }}:{{ last_mst_port.getXdotName() }} ->  {{ adapter.node.get_path()|path_conv }}:{{ adapter.slv_port.prefix }};
+                {% endif %}
+                {% set last_mst_port = adapter.mst_port %}
+            {% endfor %}
+            {{ apath.adapters[-1].mst_port.module.node.get_path()|path_conv }}:{{ apath.adapters[-1].mst_port.prefix }} -> {{ apath.adapt_to.module.node.get_path()|path_conv }}:{{ apath.adapt_to.prefix }};
+        {% endfor %}
     {% endfor %}
-        {# {% for adapter in subsys.intc_wrap.adapters %} #}
-        {#     {% for intf in adapter.intfs %} #}
-        {#         {{ intf.orig_intf.parent_node.inst_name }}:{{ intf.orig_intf.sig_prefix }} -> {{ intf.parent_node.inst_name }}:{{ intf.sig_prefix }}; #}
-        {#     {% endfor %} #}
-            {# {% set slave, master = adapter.getSlaveIntfs()[0], adapter.getMasterIntfs()[0] %} #}
-            {# {{ slave.parent_node.inst_name }}:{{ slave.sig_prefix }} -> {{ master.parent_node.inst_name }}:{{ master.sig_prefix }}; #}
-        {# {% endfor %} #}
-    }
 
-
-    {% for conn in subsys.connections %}
-        {% set first, second = subsys.getConnection(conn[0], conn[1]) %}
-        {{ first.parent_node.inst_name }}:{{ first.sig_prefix }} -> {{ second.parent_node.inst_name }}:{{ second.sig_prefix }};
+    {% for subsys in subsystems %}
+        }
     {% endfor %}
-
-    {% for intf in subsys.intc_wrap.intfsNoAdapter %}
-        {% if intf.isMaster and not subsys.intc_wrap.checkIfInConnections(intf) %}
-        {{ subsys.intc_wrap.intc.node.inst_name }}:{{ subsys.intc_wrap.intc.getMasterIntfs()[0].sig_prefix }} -> {{ intf.orig_intf.parent_node.inst_name }}:{{ intf.orig_intf.sig_prefix }};
-        {% elif intf.isSlave and not subsys.intc_wrap.checkIfInConnections(intf) %}
-        {{ intf.orig_intf.parent_node.inst_name }}:{{ intf.orig_intf.sig_prefix }} -> {{ subsys.intc_wrap.intc.node.inst_name }}:{{ subsys.intc_wrap.intc.getSlaveIntfs()[0].sig_prefix }};
-        {% endif %}
-    {% endfor %}
-
-    {% for intf in subsys.intc_wrap.intfNeedAdapter %}
-    {% endfor %}
-
 }
+

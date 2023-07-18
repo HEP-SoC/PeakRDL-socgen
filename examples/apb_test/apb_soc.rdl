@@ -1,0 +1,15 @@
+
+addrmap apb_soc #(
+    longint unsigned RANDOM = 12
+    ){
+    subsystem;
+
+
+    apb_slave slave0;
+    apb_slave slave1;
+    apb_slave slave2;
+
+    apb_master master @ 0xfffffff0;
+    clk clk;
+    rstn rstn;
+};
