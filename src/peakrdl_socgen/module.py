@@ -6,7 +6,7 @@ import math
 
 from systemrdl.rdltypes.array import ArrayPlaceholder
 
-from .intf import Intf, create_intf, IntfModport
+from .intf import Intf, Modport, create_intf_port
 from .signal import Signal
 
 class Module:
@@ -17,9 +17,23 @@ class Module:
         self.node = node 
         self.rdlc = rdlc
 
-        self.intfs = self.get_intfs()
+        self.ports = self.create_ports()
 
         self.signals = self.getSignals()
+
+    @property
+    def isOnlyMaster(self) -> bool:
+        for p in self.ports:
+            if p.params.modport.name == "slave":
+                return False
+        return True
+
+    @property
+    def isOnlySlave(self) -> bool:
+        for p in self.ports:
+            if p.params.modport.name == "master":
+                return False
+        return True
 
     def getOrigTypeName(self) -> str:
         if self.node.orig_type_name is not None:
@@ -41,10 +55,12 @@ class Module:
             return self.getRst()
 
     def getClk(self):
-        return [clk for clk in self.signals if clk.isClk()][0]
+        clks = [clk for clk in self.signals if clk.isClk()]
+        return clks[0] if len(clks) > 0 else None
 
     def getRst(self):
-        return [rst for rst in self.signals if rst.isRst()][0]
+        rsts = [rst for rst in self.signals if rst.isRst()]
+        return rsts[0] if len(rsts) > 0 else None
 
     def getAddrmaps(self):
         return [addrmap for addrmap in self.node.children() if isinstance(addrmap, AddrmapNode)]
@@ -52,14 +68,14 @@ class Module:
     def getSlaveNodes(self):
         return [addrmap for addrmap in self.getAddrmaps() if addrmap.get_property('master') is None]
 
-    def getSlaveIntfs(self) -> List[Intf]:
-        return [intf for intf in self.intfs if intf.modport == IntfModport.SLAVE]
+    def getSlavePorts(self) -> List[Intf]:
+        return [intf for intf in self.ports if intf.modport.name == "slave"]
 
-    def getMasterIntfs(self) -> List[Intf]:
-        return [intf for intf in self.intfs if intf.modport == IntfModport.MASTER]
+    def getMasterPorts(self) -> List[Intf]:
+        return [intf for intf in self.ports if intf.modport.name == "master"]
 
-    def hasIntf(self, intf : Intf):
-        return intf in self.intfs
+    # def hasIntf(self, intf : Intf):
+    #     return intf in self.ports
 
     def getHdlParameters(self):
         params = [param for param in self.node.inst.parameters if self.isHwParam(param)]
@@ -101,35 +117,17 @@ class Module:
     def getSigVerilogName(self, s : Signal, intf : "Intf | None" = None) -> str:
         return self.node.inst_name + "_" + s.name
 
-    def get_intfs(self):
-        intfs_prop = self.node.get_property("intfs")
+    def create_ports(self):
+        intfs_prop = self.node.get_property("ifports")
         if intfs_prop is None:
             return []
-        intfs = []
+        ports = []
         for p in intfs_prop:
-            try:
-                cap = p.cap
-            except:
-                cap = False
-            try:
-                prefix = p.prefix
-            except AttributeError:
-                prefix = ""
-            try:
-                modport = list(IntfModport)[p.modport.value]
-            except AttributeError:
-                modport = IntfModport.SLAVE
+            port = create_intf_port(
+                    rdlc=self.rdlc,
+                    module=self,
+                    intf_struct=p
+                    )
+            ports.append(port)
 
-            intf = create_intf(
-                        self.rdlc,
-                        parent_node=self.node,
-                        intf_type=p.name,
-                        addr_width=p.ADDR_WIDTH,
-                        data_width=p.DATA_WIDTH,
-                        prefix=prefix,
-                        modport=modport,
-                        capitalize=cap,
-                        )
-            intfs.append(intf)
-
-        return intfs
+        return ports

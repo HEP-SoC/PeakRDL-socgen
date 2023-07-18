@@ -1,0 +1,28 @@
+addrmap axi_slave #(
+    axi_intf INTF = axi_intf'{
+        ADDR_WIDTH:32,
+        DATA_WIDTH:32,
+        ID_WIDTH:3,
+        prefix:"mem_",
+        modport:Modport::slave,
+        cap:false
+        }
+    )
+    {
+
+    ifports = '{INTF};
+
+    mem {
+        mementries = 1;
+        memwidth   = INTF.DATA_WIDTH;
+
+    } external memory;
+
+    clk clk;
+    rst rst;
+
+    signal {output;} random_sig;
+
+};
+
+

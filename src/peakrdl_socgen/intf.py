@@ -1,13 +1,83 @@
 from systemrdl import RDLCompiler
-from typing import Dict
+from typing import Dict, OrderedDict, Any
 from systemrdl.node import AddrmapNode, Node
+from systemrdl.rdltypes.user_struct import UserStruct
+from systemrdl.rdltypes.user_enum import UserEnum
 from enum import Enum
 
-from .signal import Signal
+from .signal import IntfSignal, Signal
 
-class IntfModport(Enum):  # TODO make it same type as the RDL one
-    SLAVE = 0
-    MASTER = 1
+class Modport(Enum):  # TODO make it same type as the RDL one
+    slave = 0
+    master = 1
+
+class IntfPort:
+
+    def __init__(self,
+                 rdlc        : RDLCompiler,
+                 port_node   : AddrmapNode,
+                 module      : "Module",
+                 orig_intf   : "IntfPort|None"=None,
+                 idx         : int = 0,
+                 in_array    : bool = False,
+                 ):
+        self.rdlc = rdlc
+        self.node = port_node
+        self.module = module
+        self.idx = idx
+        self.in_array = in_array
+
+        self.orig_intf = orig_intf
+        if orig_intf is None:
+            self.orig_intf = self
+
+        if self.node.is_array:
+            assert len(self.node.array_dimensions) <= 1, f"Array dimension of {port_node} more than 1, {self.node.array_dimensions}"
+        self.arr_dim = self.node.array_dimensions[0] if self.node.is_array else 1
+
+        for k in self.params._values:
+            setattr(self, k, self.params._values[k])
+
+        self.type = self.node.orig_type_name
+
+        self.signals = self.createSignals()
+
+    @property
+    def params(self) -> UserStruct:
+        intf_inst = self.node.get_property('intf_inst', default=None)
+        assert intf_inst is not None, f"No intf_inst defined for interface node: {self.node.orig_type_name}"
+        return intf_inst
+
+    def createSignals(self):
+        signals = []
+        for s in self.node.signals():
+            signals.append(IntfSignal(s, self))
+        return signals
+
+    # def __getattr__(self, name: str) -> Any:
+        # assert False, f"Parameter {name} not in {self.node.orig_type_name}, {self.params._values}"
+
+    def __str__(self) -> str:
+        ret_s = "Interface: " + str(self.type) + ", module: " + self.module.node.get_path() + ", "
+        for a in self.params._values:
+            ret_s += a + ": " + str(self.params.__getattr__(a)) + ", "
+
+        assert(self.signals is not None)
+        for s in self.signals:
+            ret_s += "\n        " + str(s)
+
+        return ret_s
+
+    def findSignal(self, sig : Signal) -> IntfSignal:
+        signals = [s for s in self.signals if s.basename == sig.basename]
+        assert len(signals) == 1, f"Looking for {sig.basename}, exactly one element with the same basename must exist found: {len(signals)} {signals}"
+        return signals[0]
+
+    def getXdotName(self):
+        if self.in_array:
+            return self.prefix + f"{self.idx}"
+        else:
+            return self.prefix
 
 class Intf:
     def __init__(self,
@@ -16,7 +86,6 @@ class Intf:
             rdlc : RDLCompiler,
             sig_prefix : str = "",
             orig_intf : "Intf|None" = None,
-            modport : IntfModport = IntfModport.SLAVE,
             capitalize : bool = False,
             N : int=1,
             ):
@@ -31,8 +100,7 @@ class Intf:
 
         self.addr_width = prop.ADDR_WIDTH
         self.data_width = prop.DATA_WIDTH
-        self.modport = modport
-        self.parent_node = parent_node
+        self.module = module
         self.__orig_intf = orig_intf
         self.N = N
 
@@ -46,42 +114,42 @@ class Intf:
     def orig_intf(self, value):
         self.__orig_intf = value
 
-    @property
-    def isMaster(self):
-        return self.modport == IntfModport.MASTER
-
-    @property
-    def isSlave(self):
-        return self.modport == IntfModport.SLAVE
+    # @property
+    # def isMaster(self):
+    #     return self.modport == Modport.master
+    #
+    # @property
+    # def isSlave(self):
+    #     return self.modport == Modport.slave
 
     def getSignals(self, intf_node : AddrmapNode, prefix : str = ""):
         signals = []
         if self.isIntf(intf_node):
             for s in intf_node.signals():
-                signals.append(Signal(s, prefix, capitalize=self.capitalize))
+                signals.append(IntfSignal(s, prefix, capitalize=self.capitalize))
         return signals
 
-    def findSignal(self, basename : str) -> Signal:
+    def findSignal(self, basename : str) -> IntfSignal:
         signals = [s for s in self.signals if s.basename == basename]
         assert len(signals) == 1, f"Looking for {basename}, exactly one element with the same basename must exist found: {len(signals)} {signals}"
         return signals[0]
 
-    def getSignalVerilogType(self, sig : Signal):
-        if sig.bidir:
-            return "inout"
-
-        if sig.miso and not sig.mosi:
-            if self.modport == IntfModport.SLAVE:
-                return "output wire"
-            elif self.modport == IntfModport.MASTER:
-                return "input wire"
-        elif sig.mosi and not sig.miso:
-            if self.modport == IntfModport.SLAVE:
-                return "input wire"
-            elif self.modport == IntfModport.MASTER:
-                return "output wire"
-
-        return "ERROR BUG FOUND"
+    # def getSignalVerilogType(self, sig : Signal):
+    #     if sig.bidir:
+    #         return "inout"
+    #
+    #     if sig.miso and not sig.mosi:
+    #         if self.modport == Modport.slave:
+    #             return "output wire"
+    #         elif self.modport == Modport.master:
+    #             return "input wire"
+    #     elif sig.mosi and not sig.miso:
+    #         if self.modport == Modport.slave:
+    #             return "input wire"
+    #         elif self.modport == Modport.master:
+    #             return "output wire"
+    #
+    #     return "ERROR BUG FOUND"
 
     def getSlavePrefix(self, intf : "Intf") -> str:
         if intf.sig_prefix == "":
@@ -134,12 +202,12 @@ class Intf:
             return True
 
     def print(self):
+        print("Printing")
         print("Intf: ", self.name,
-                " Parent node: ", self.parent_node.get_path(),
+                " Parent node: ", self.module.get_path(),
                 " Prefix: ", self.sig_prefix,
                 " Addr width: ", self.addr_width,
-                " Data width: ", self.data_width,
-                " Modport: ", self.modport,
+                " Data width: ", self.data_width
                 )
         assert(self.signals is not None)
         for s in self.signals:
@@ -151,10 +219,10 @@ class Intf:
             ):
 
         modport = None
-        if self.modport == IntfModport.SLAVE:
-            modport = IntfModport.MASTER
-        elif self.modport == IntfModport.MASTER:
-            modport = IntfModport.SLAVE
+        if self.modport == Modport.slave:
+            modport = Modport.master
+        elif self.modport == Modport.master:
+            modport = Modport.slave
         assert modport is not None
 
         return create_intf(
@@ -169,64 +237,67 @@ class Intf:
                 )
 
 
-def create_intf(
-        rdlc,
-        parent_node : AddrmapNode,
+def get_intf_param_string(
         intf_type : str,
-        addr_width : int,
-        data_width : int,
-        prefix : str,
-        modport : IntfModport,
-        capitalize : bool = False,
+        intf_dict : "Dict"
+        ):
+
+    intf_type_str = f"{intf_type}'{{" # }}
+    for k, v in intf_dict.items():
+
+        if isinstance(v, bool):     # Bool is subclass of int, need to check first
+            val_str = f'{v.__str__().lower()}'
+        elif isinstance(v, int):
+            val_str = v
+        elif isinstance(v, str):
+            val_str = f'"{v}"'
+        elif isinstance(v, UserEnum):
+            val_str = f'{v.__class__.__name__}::{v.name}'
+        else:
+            assert False, f"Unexpected type key: {k} value: {v} for {intf_dict}"
+
+        intf_type_str += f"{k}: {val_str}, "
+
+    return intf_type_str[:-2] + "}" # Delete last comma
+
+def create_intf_port(
+        rdlc,
+        module : "Module",
+        intf_struct,
         orig_intf  : "Intf|None" = None,
         N : int=1,
         ):
-    
-    override_params = get_intf_t_param_str(intf_type, addr_width, data_width, prefix, modport)
 
-    param = rdlc.eval(override_params)
-
-    new_intf_root = rdlc.elaborate(
-            top_def_name=intf_type,
-                inst_name=intf_type,
-                parameters={'INTF': param, 'N': N}
+    intf_type = intf_struct.__class__.__qualname__
+    intf_type_str = get_intf_param_string(
+            intf_type=intf_type,
+            intf_dict=intf_struct._values,
             )
-    new_intf = new_intf_root.get_child_by_name(intf_type)
+    
+    param = rdlc.eval(intf_type_str)
 
-    assert(isinstance(new_intf, AddrmapNode))
+    intf_node_name = intf_type + "_node"
+    new_port_root = rdlc.elaborate(
+            top_def_name=intf_node_name,
+            inst_name=intf_node_name,
+            parameters={'INTF': param}
+            )
+    new_port = new_port_root.get_child_by_name(intf_node_name)
+    assert(isinstance(new_port, AddrmapNode))
 
-    return Intf(
-            intf_node=new_intf,
-            parent_node=parent_node,
+    return IntfPort(
             rdlc=rdlc,
-            sig_prefix=prefix,
-            modport=list(IntfModport)[modport.value],
-            capitalize=capitalize,
-            N=N,
-            orig_intf=orig_intf)
+            port_node=new_port,
+            module=module
+            )
+    
+    # return Intf(
+    #         intf_node=new_intf,
+    #         module=module,
+    #         rdlc=rdlc,
+    #         sig_prefix=prefix,
+    #         modport=list(Modport)[modport.value],
+    #         capitalize=capitalize,
+    #         N=N,
 
-def get_intf_t_param_str(
-        intf_type : str,
-        addr_width : int,
-        data_width : int,
-        prefix : str,
-        modport : IntfModport,
-        ) -> str:
-
-    param = f"intf_t'{{name: \"{intf_type}\", DATA_WIDTH: {data_width}, ADDR_WIDTH: {addr_width}, prefix: \"{prefix}\", modport:Modport::{modport.name.lower()} }}"
-
-    return param
-
-def get_intf_cap_param_str(
-        intf_type : str,
-        addr_width : int,
-        data_width : int,
-        prefix : str,
-        modport : IntfModport,
-        cap : bool,
-        ) -> str:
-    cap_str =  cap.__str__().lower()
-
-    param = f"intf_cap'{{name: \"{intf_type}\", DATA_WIDTH: {data_width}, ADDR_WIDTH: {addr_width}, prefix: \"{prefix}\", modport:Modport::{modport.name.lower()}, cap:{cap_str} }}"
-
-    return param
+    #         orig_intf=orig_intf)

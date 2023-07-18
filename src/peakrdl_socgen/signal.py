@@ -11,11 +11,12 @@ class SignalType(Enum):  # TODO make it same type as the RDL one
     WIRE = 6
     BLANK = 7
 
+
 class Signal:
     def __init__(self,
             node : SignalNode,
             prefix : str = "",
-            capitalize : bool = False,
+            cap : bool = False,
             ):
 
         self.node = node
@@ -23,13 +24,9 @@ class Signal:
         # self.sig_name = prefix + node.inst_name # TOOD check if correct
         self.prefix = prefix
         self.basename = node.inst_name
-        self.capitalize = capitalize
+        self.cap = cap
 
         self.width = node.width
-        self.ss =  node.get_property('ss', default=False)    != False
-        self.miso = node.get_property('miso', default=False) != False
-        self.mosi = node.get_property('mosi', default=False) != False
-        self.bidir = self.miso and self.mosi
         self.is_clk = self.isClk()
         self.is_rst = self.isRst()
         
@@ -42,24 +39,20 @@ class Signal:
 
     @property
     def name(self):
-        if self.capitalize:
+        if self.cap:
             return self.prefix + self.node.inst_name.upper()
         return self.prefix + self.node.inst_name
 
     @property
-    def verilogType(self):
-        w = ""
-        if self.width > 1:
-            w = f"[{self.width-1}:0]"
+    def verilogDir(self):
         if self.input:
-            return "input wire " + w
+            return "input wire"
         elif self.output:
-            return "output wire " + w
-
+            return "output wire"
         elif self.is_clk or self.is_rst:
-            return "input wire " + w
+            return "input wire"
 
-        return "None TODO intf.py, verilogType()"
+        assert False, f"Signal does not have input or output"
 
     def isShared(self):
         return not self.ss and not self.miso  # TODO what happens for bidir?
@@ -87,6 +80,39 @@ class Signal:
         return False
 
     def print(self):
-        print("Signal: ", self.name, " Width: ", self.width, " SS: ", self.ss, " MOSI: ", self.mosi, " MISO ", self.miso, " Cap: ", self.capitalize, " Active low/high", self.activelow, self.activehigh)
+        print("Signal: ", self.name, " Width: ", self.width, " Cap: ", self.cap, " Active low/high", self.activelow, self.activehigh)
 
+    def __str__(self) -> str:
+        return f"Signal: {self.name} Width: {self.width} Cap: {self.cap} Active low/high: {self.activelow} {self.activehigh}"
 
+class IntfSignal(Signal):
+
+    def __init__(self,
+            node : SignalNode,
+                 intf : "Intf", # type: ignore
+            ):
+
+        self.intf = intf
+
+        super().__init__(
+                node=node,
+                prefix=intf.prefix,
+                cap=intf.cap,
+                )
+
+        self.ss =  node.get_property('ss', default=False)    != False
+        self.miso = node.get_property('miso', default=False) != False
+        self.mosi = node.get_property('mosi', default=False) != False
+        self.bidir = self.miso and self.mosi
+
+    def print(self):
+        print("Signal: ", self.name, " Width: ", self.width, " SS: ", self.ss, " MOSI: ", self.mosi, " MISO ", self.miso, " Cap: ", self.cap, " Active low/high", self.activelow, self.activehigh)
+
+    @property
+    def verilogDir(self):
+        if self.miso ^ (self.intf.modport.name == "slave"):
+            return "input wire "
+        elif self.mosi ^ (self.intf.modport.name == "slave"):
+            return "output wire "
+
+        assert False, f"Intf Signal does not have mosi or miso property"

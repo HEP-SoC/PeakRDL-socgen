@@ -1,7 +1,0 @@
-set(VERILATOR_ROOT /mnt/ext/verisc/open/verilator-5.006/)
-# set(CMAKE_FIND_DEBUG_MODE TRUE)
-find_package(verilator HINTS ${VERILATOR_ROOT})
-# set(CMAKE_FIND_DEBUG_MODE FALSE)
-if (NOT verilator_FOUND)
-  message(FATAL_ERROR "Verilator was not found. Either install it, or set the VERILATOR_ROOT environment variable")
-endif()

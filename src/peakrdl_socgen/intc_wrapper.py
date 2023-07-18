@@ -7,7 +7,7 @@ from typing import List, Tuple
 from .module import Module
 from .intc import Intc
 from .adapter import Adapter
-from .intf import Intf, IntfModport, create_intf, get_intf_cap_param_str
+from .intf import IntfPort, Modport, get_intf_param_string
 from .signal import Signal
 
 class InvalidAdapter(Exception):
@@ -18,9 +18,9 @@ class IntcWrapper(Module):
     def __init__(self,
             rdlc : RDLCompiler,
             subsystem_node : "Subsystem", # type: ignore
-            ext_slv_intfs : List[Intf],
-            ext_mst_intfs : List[Intf],
-            ext_connections : List[Tuple[Intf, Intf]],
+            ext_slv_intfs : List[IntfPort],
+            ext_mst_intfs : List[IntfPort],
+            ext_connections : List[Tuple[IntfPort, IntfPort]],
             name : "str|None" = None
             ):
         self.rdlc = rdlc
@@ -48,14 +48,14 @@ class IntcWrapper(Module):
     @property
     def intfsNeedAdapter(self):
         _, intf_type = self.determineIntc()
-        return [intf for intf in self.intfs if intf.name != intf_type]
+        return [intf for intf in self.ports if intf.type != intf_type]
 
     @property
     def intfsNoAdapter(self):
         _, intf_type = self.determineIntc()
-        return [intf for intf in self.intfs if intf.name == intf_type]
+        return [intf for intf in self.ports if intf.type == intf_type]
 
-    def groupSignals(self, first : Intf, second : Intf):
+    def groupSignals(self, first : IntfPort, second : IntfPort):
         conns = []
         for s in first.signals:
             other = second.findSignal(s.basename)
@@ -66,7 +66,7 @@ class IntcWrapper(Module):
                 conns.append((other, s))
         return conns
 
-    def checkIfInConnections(self, intf : Intf):
+    def checkIfInConnections(self, intf : IntfPort):
         for conn in self.connections:
             if intf in conn:
                 return True
@@ -75,9 +75,9 @@ class IntcWrapper(Module):
     def create_intc(self):
         _, intf_type = self.determineIntc()
 
-        intc_slave_ports = [intf for intf in self.intfsNoAdapter if intf.modport == IntfModport.SLAVE]
+        intc_slave_ports = [intf for intf in self.intfsNoAdapter if intf.modport.name == "slave"]
         intc_slave_ports = [slv for slv in intc_slave_ports if not self.checkIfInConnections(slv)]
-        intc_master_ports = [intf for intf in self.intfsNoAdapter if intf.modport == IntfModport.MASTER]
+        intc_master_ports = [intf for intf in self.intfsNoAdapter if intf.modport.name == "master"]
         intc_master_ports = [mst for mst in intc_master_ports if not self.checkIfInConnections(mst)]
 
         data_width, addr_width = self.getIntcWidths()
@@ -90,12 +90,12 @@ class IntcWrapper(Module):
                     intf_type=intf_type,
                     addr_width=addr_width, # TODO
                     data_width=data_width, 
-                    prefix=intf_type.replace("_intf", "") + "2" +  intf.name.replace("_intf", "") + "_" + intf.sig_prefix + "_", 
+                    prefix=intf_type.replace("_intf", "") + "2" +  intf.type.replace("_intf", "") + "_" + intf.prefix + "_", 
                     modport=intf.modport,
                     )
-            if intc_intf.modport == IntfModport.SLAVE:
+            if intc_intf.modport.name == "slave":
                 intc_slave_ports.append(intc_intf)
-            elif intc_intf.modport == IntfModport.MASTER:
+            elif intc_intf.modport.name == "master":
                 intc_master_ports.append(intc_intf)
 
             adapters = self.createAdaptersOnPath(intf, intc_intf)
@@ -117,18 +117,18 @@ class IntcWrapper(Module):
                     intfs.append(intf)
         return list(set(intfs)) # remove duplicates
 
-    def createAdaptersOnPath(self, intf : Intf, intc_intf : Intf):
+    def createAdaptersOnPath(self, intf : IntfPort, intc_intf : IntfPort):
         available_adapters = ["axi2axi_lite", "axi_lite2apb", "nmi2apb", "pulpif2axi_lite", "pulpif2axi"] # TODO find it automatically
         adapter_paths = []
 
-        if intf.name == intc_intf.name:
+        if intf.type == intc_intf.type:
             return None
 
         adapter_name = None
-        if intf.modport == IntfModport.MASTER:
-            adapter_name =  intc_intf.name.replace("_intf", "") + "2" + intf.name.replace("_intf", "")
-        elif intf.modport == IntfModport.SLAVE:
-            adapter_name = intf.name.replace("_intf", "") + "2" + intc_intf.name.replace("_intf", "")
+        if intf.modport.name == "master":
+            adapter_name =  intc_intf.type.replace("_intf", "") + "2" + intf.type.replace("_intf", "")
+        elif intf.modport.name == "slave":
+            adapter_name = intf.type.replace("_intf", "") + "2" + intc_intf.type.replace("_intf", "")
 
         if adapter_name in available_adapters:
             return [Adapter(adapt_from=intc_intf, adapt_to=intf, rdlc=self.rdlc)]
@@ -148,7 +148,7 @@ class IntcWrapper(Module):
                 if slv.split("2")[1] == mst.split("2")[0]:
                     adapter_paths.append([slv, mst])
 
-        for cnt, adapter in enumerate(adapter_paths[0]): # IF MASTER TODO SLAVE
+        for cnt, adapter in enumerate(adapter_paths[0]): # IF master TODO slave
             if cnt == 0:
                 adapt_to = create_intf(
                         rdlc=self.rdlc,
@@ -173,7 +173,7 @@ class IntcWrapper(Module):
                 self.adapters.append(Adapter(adapt_from=self.adapters[-1].adapt_to, adapt_to=intf, rdlc=self.rdlc))
 
 
-        assert len(adapter_paths) > 0, f"Could not find appropriate adapter or combination for {intf.name} modport: {intf.modport} and {intc_intf.name}"
+        assert len(adapter_paths) > 0, f"Could not find appropriate adapter or combination for {intf.type} modport: {intf.modport} and {intc_intf.type}"
 
 
     def getIntcWidths(self) -> "tuple[int, int]":
@@ -185,9 +185,9 @@ class IntcWrapper(Module):
         slave_intfs = self.getSlaveIntfs()
         intf_type_cnt = {}
         for intf in slave_intfs:
-            intf_type_cnt[intf.name] = 0
+            intf_type_cnt[intf.type] = 0
         for intf in slave_intfs:
-            intf_type_cnt[intf.name] += 1
+            intf_type_cnt[intf.type] += 1
 
         max_intf = max(intf_type_cnt, key=intf_type_cnt.get) # type: ignore
 
@@ -199,27 +199,31 @@ class IntcWrapper(Module):
         params = r"'{"
         ports = [*self.ext_slv_intfs, *self.ext_mst_intfs]
         for i, intf in enumerate(ports):
+            print("Intf: ", intf)
             modport = None
             if intf in self.ext_slv_intfs:
-                modport = IntfModport.SLAVE
+                modport = Modport.slave
             elif intf in self.ext_mst_intfs:
-                modport = IntfModport.MASTER
+                modport = Modport.master
             assert modport is not None
 
             if intf.parent_node == self.parent_node: # if interface is from top node dont add prefix of instantiation
-                prefix = intf.sig_prefix
+                prefix = intf.prefix
             else:
-                prefix = intf.parent_node.inst_name + "_" + intf.sig_prefix
+                prefix = intf.parent_node.inst_name + "_" + intf.prefix
 
-            params = params + get_intf_cap_param_str(
-                intf_type=intf.name,
-                addr_width=intf.addr_width,
-                data_width=intf.data_width,
-                # prefix=intf.parent_node.inst_name + "_" + intf.sig_prefix,
-                prefix=prefix,
-                modport=modport,
-                cap=intf.capitalize,
-                )
+            # params = get_intf_param_string(
+            #
+            #     )
+            # params = params + get_intf_cap_param_str(
+            #     intf_type=intf.type,
+            #     addr_width=intf.ADDR_WIDTH,
+            #     data_width=intf.DATA_WIDTH,
+            #     # prefix=intf.parent_node.inst_name + "_" + intf.prefix,
+            #     prefix=prefix,
+            #     modport=modport,
+            #     cap=intf.cap,
+            #     )
             if i < len(ports)-1:
                 params = params + ", "
         params = params + r"}"
@@ -243,29 +247,29 @@ class IntcWrapper(Module):
         connections = []
         for first, second in ext_connections:
             conn_ifs = (None, None)
-            for intf in self.intfs:
-                first_new_prefix = first.parent_node.inst_name + "_" + first.sig_prefix
-                second_new_prefix = second.parent_node.inst_name + "_" + second.sig_prefix
-                if first_new_prefix == intf.sig_prefix:
+            for intf in self.ports:
+                first_new_prefix = first.parent_node.inst_name + "_" + first.prefix
+                second_new_prefix = second.parent_node.inst_name + "_" + second.prefix
+                if first_new_prefix == intf.prefix:
                     conn_ifs = (intf, conn_ifs[1])
-                if second_new_prefix == intf.sig_prefix:
+                if second_new_prefix == intf.prefix:
                     conn_ifs = (conn_ifs[0], intf)
 
             assert all(x is not None for x in conn_ifs), f"Could not find one of the connections: {first} = {conn_ifs[0]} | {second} = {conn_ifs[1]}"
-            assert conn_ifs[0].modport != conn_ifs[1].modport, f"Connection interfaces need to be slave and master {conn_ifs[0].sig_prefix}, {conn_ifs[1].sig_prefix}" # type: ignore
+            assert conn_ifs[0].modport != conn_ifs[1].modport, f"Connection interfaces need to be slave and master {conn_ifs[0].prefix}, {conn_ifs[1].prefix}" # type: ignore
             connections.append(conn_ifs)
         return connections
 
     def assignOriginalIntfs(self):
-        for intf in self.intfs:
+        for intf in self.ports:
             for orig in [*self.ext_mst_intfs, *self.ext_slv_intfs]:
-                if orig.parent_node.inst_name + "_" + orig.sig_prefix == intf.sig_prefix:
+                if orig.parent_node.inst_name + "_" + orig.prefix == intf.prefix:
                     intf.orig_intf = orig
 
     def getOrigTypeName(self) -> str:
         return self.node.inst_name
 
-    def getSigVerilogName(self, s : Signal, intf : "Intf | None" = None) -> str:
+    def getSigVerilogName(self, s : Signal, intf : "IntfPort | None" = None) -> str:
         if intf is None:
             return s.name
         if intf.parent_node == self.node:
