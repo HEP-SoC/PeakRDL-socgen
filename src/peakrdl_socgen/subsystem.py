@@ -76,7 +76,7 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         signals = []
         for mod in self.modules:
             for s in mod.signals:
-                if not (s.is_rst or s.is_clk):
+                if s.node.get_property("propagate", default=False):
                     signals.append(Signal(
                         node=s.node, 
                         prefix=mod.node.inst_name + "_" + s.prefix,
