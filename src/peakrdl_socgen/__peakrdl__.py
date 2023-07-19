@@ -27,6 +27,7 @@ class Exporter(ExporterSubcommandPlugin):
         arg_group.add_argument(
                 "--vinject",
                 nargs="*", 
+                default=[],
                 help="List of files to inject into the generated subsystems. If you want to inject a file into a subsystem called apb_subsystem, you need to name your file apb_subsystem_inj_<some_name>.v/sv"
                 )
 
