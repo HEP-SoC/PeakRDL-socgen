@@ -25,12 +25,10 @@ module {{ subsys.getOrigTypeName() }} {% if subsys_params|length > 0 %} #(
 {% for module in subsys.getAllModules() %}
 {% for s in module.signals %}
 {% if s.is_clk %}
-    wire   {{ module.getSigVerilogName(s) }};
     assign {{ module.getSigVerilogName(s) }} = {{ subsys.getClkOrRst(s).name }};
 {% endif %}
 {% if s.is_rst %}
     {% set rst_sig = subsys.getClkOrRst(s) %}
-    wire   {{ module.getSigVerilogName(s) }};
     assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh != rst_sig.activehigh %}!{% endif %}{{ rst_sig.name }};
 {% endif %}
 {% endfor %}
@@ -43,6 +41,13 @@ module {{ subsys.getOrigTypeName() }} {% if subsys_params|length > 0 %} #(
 *========================================================================================*/
 
 {% for module in subsys.modules %}
+    {% for s in module.signals %}
+        {% set sig_name = module.node.inst_name + "_" + s.name %}
+        {% if not subsys.hasSignal(sig_name) %}
+    wire [{{ s.width-1 }}:0] {{ sig_name }};
+        {% endif %}
+    {% endfor %}
+
     {% for port in module.ports %}
         {% for s in port.signals %}
     wire [{{ s.width-1 }}:0] {{ module.node.inst_name }}_{{ s.name }}; // {{ module.node.inst_name }}  {{ port.type }}
@@ -78,6 +83,12 @@ module {{ subsys.getOrigTypeName() }} {% if subsys_params|length > 0 %} #(
 *========================================================================================*/
 
 {% for intc in subsys.intcs %}
+    {% for s in intc.signals %}
+        {% set sig_name = intc.node.inst_name + "_" + s.name %}
+        {% if not subsys.hasSignal(sig_name) %}
+    wire [{{ s.width-1 }}:0] {{ sig_name }};
+        {% endif %}
+    {% endfor %}
 
     // Interconnect Ports
 
@@ -176,6 +187,13 @@ module {{ subsys.getOrigTypeName() }} {% if subsys_params|length > 0 %} #(
 
 {% for apath in subsys.adapter_paths %}
     {% for adapter in apath.adapters %}
+        {% for s in adapter.signals %}
+            {% set sig_name = adapter.node.inst_name + "_" + s.name %}
+            {% if not subsys.hasSignal(sig_name) %}
+    wire [{{ s.width-1 }}:0] {{ sig_name }};
+            {% endif %}
+        {% endfor %}
+
         {% set adapter_idx = loop.index %}
         {% if loop.first %}
             {% set prev_adapter = adapter %}
@@ -236,6 +254,36 @@ module {{ subsys.getOrigTypeName() }} {% if subsys_params|length > 0 %} #(
     {% endif %}
 
     {% endfor %}
+
+{% endfor %}
+
+/*========================================================================================
+*================ Signal connections from path property ==================================
+*========================================================================================*/
+
+{% for s in subsys.signals %}
+    {% set sig_path = s.node.get_property("path", default="")|path_conv %}
+    {% if (sig_path != "") and (sig_path != s.name) %}
+        {% if s.output %}
+    assign {{ s.name }} = {{ sig_path }};
+        {% elif s.input %}
+    assign {{ sig_path }} = {{ s.name }} ;
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+/*========================================================================================
+*===================== Injected Verilog files ============================================
+*========================================================================================*/
+
+{% for f in inj_f %}
+    {% if use_include %}
+    `include "{{ f|get_file_name }}";
+    {% else %}
+    // Content of {{ f }}
+
+{{ f|get_file_content }}
+    {% endif %}
 
 {% endfor %}
 

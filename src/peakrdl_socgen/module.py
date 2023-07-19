@@ -48,6 +48,12 @@ class Module:
                 signals.append(Signal(s))
         return signals
 
+    def hasSignal(self, sig_name) -> bool:
+        for s in self.signals:
+            if s.name == sig_name:
+                return True
+        return False
+
     def getClkOrRst(self, s : Signal):
         if s.isClk():
             return self.getClk()

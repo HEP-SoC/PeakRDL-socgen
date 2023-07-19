@@ -10,6 +10,15 @@ from .subsystem import Subsystem, SubsystemListener, getOrigTypeName
 def dot_to_uscore(in_str):
     return in_str.replace(".", "_")
 
+def get_file_content(file : str) -> str:
+    ret_str = ""
+    with open(file, "r") as f:
+        ret_str = f.read()
+    return ret_str
+
+def get_file_name(file : str) -> str:
+    return os.path.basename(file)
+
 class SocExporter():
     def __init__(self):
         self.subsystem_template_dir = "subsystem"
@@ -62,6 +71,8 @@ class SocExporter():
             nodes: 'Union[Node, List[Node]]',
             outdir: str, 
             intfs: 'List[str]',
+            vinject : 'List[str]',
+            use_include : bool = False,
             **kwargs: 'Dict[str, Any]') -> None:
 
         # if not a list
@@ -87,8 +98,14 @@ class SocExporter():
 
 
         for subsys in subsystems:
+            subsys_inj_files = []
+            for inj_f in vinject:
+                if os.path.basename(inj_f).startswith(subsys.getOrigTypeName()):
+                    subsys_inj_files.append(inj_f)
             context = {
-                    'subsys' : subsys 
+                    'subsys' : subsys,
+                    'inj_f'  : subsys_inj_files,
+                    'use_include' : use_include,
                     }
             text = self.process_template(context, "subsystem.j2")
 
@@ -115,6 +132,9 @@ class SocExporter():
         env.filters.update({
             'zip' : zip,
             'int' : int,
+            'path_conv' : dot_to_uscore,
+            'get_file_content' : get_file_content,
+            'get_file_name' : get_file_name,
             })
 
         res = env.get_template(template).render(context)

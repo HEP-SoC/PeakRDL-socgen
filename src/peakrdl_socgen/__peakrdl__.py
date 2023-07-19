@@ -25,6 +25,20 @@ class Exporter(ExporterSubcommandPlugin):
                 )
 
         arg_group.add_argument(
+                "--vinject",
+                nargs="*", 
+                help="List of files to inject into the generated subsystems. If you want to inject a file into a subsystem called apb_subsystem, you need to name your file apb_subsystem_inj_<some_name>.v/sv"
+                )
+
+        arg_group.add_argument(
+            "--use-include",
+            dest="use_include",
+            default=False,
+            action="store_true",
+            help="Use verilog include directive to include files specified with --vinject flag. By default content of files are injected into the generated sources"
+        )
+
+        arg_group.add_argument(
             "--list-files",
             dest="list_files",
             default=False,
@@ -44,5 +58,6 @@ class Exporter(ExporterSubcommandPlugin):
                 nodes=top_node,
                 outdir=options.output,
                 intfs=options.intfs,
+                vinject=options.vinject,
+                use_include=options.use_include,
             )
-
