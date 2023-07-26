@@ -3,3 +3,9 @@
 ## 0.0.3
 
 * Add support for injection of verilog files into the generated subsystem files
+
+## 0.0.4
+
+* Rename Pulpif to OBI
+* Remove interconnects directory, they are in a separate repo
+* Add --gen-dot option that enables generation of graphviz dot file, its disabled by default now

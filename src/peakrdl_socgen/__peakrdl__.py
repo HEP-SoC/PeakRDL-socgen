@@ -48,6 +48,14 @@ class Exporter(ExporterSubcommandPlugin):
         )
 
 
+        arg_group.add_argument(
+            "--gen-dot",
+            dest="gen_dot",
+            default=False,
+            action="store_true",
+            help="Generate also block diagram of the generated SoC in graphviz dot format"
+        )
+
     def do_export(self, top_node: 'AddrmapNode', options: 'argparse.Namespace') -> None:
         soc = SocExporter(
         )
@@ -61,4 +69,5 @@ class Exporter(ExporterSubcommandPlugin):
                 intfs=options.intfs,
                 vinject=options.vinject,
                 use_include=options.use_include,
+                gen_dot=options.gen_dot,
             )

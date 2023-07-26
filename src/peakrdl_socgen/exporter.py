@@ -73,6 +73,7 @@ class SocExporter():
             intfs: 'List[str]',
             vinject : 'List[str]',
             use_include : bool = False,
+            gen_dot : bool = False,
             **kwargs: 'Dict[str, Any]') -> None:
 
         # if not a list
@@ -113,14 +114,15 @@ class SocExporter():
             with open(out_file, 'w') as f:
                 f.write(text)
 
-        context = {
-                'subsystems' : subsystems 
-                }
-        text = self.process_dot_template(context)
+        if gen_dot:
+            context = {
+                    'subsystems' : subsystems 
+                    }
+            text = self.process_dot_template(context)
 
-        out_file = os.path.join(outdir, subsystems[0].getOrigTypeName() + ".dot")
-        with open(out_file, 'w') as f:
-            f.write(text)
+            out_file = os.path.join(outdir, "soc_diagram.dot")
+            with open(out_file, 'w') as f:
+                f.write(text)
 
     def process_template(self, context : dict, template : str) -> str:
 
