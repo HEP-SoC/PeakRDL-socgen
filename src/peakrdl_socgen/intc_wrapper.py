@@ -118,7 +118,7 @@ class IntcWrapper(Module):
         return list(set(intfs)) # remove duplicates
 
     def createAdaptersOnPath(self, intf : IntfPort, intc_intf : IntfPort):
-        available_adapters = ["axi2axi_lite", "axi_lite2apb", "nmi2apb", "pulpif2axi_lite", "pulpif2axi"] # TODO find it automatically
+        available_adapters = ["axi2axi_lite", "axi_lite2apb", "nmi2apb", "obi2axi_lite", "obi2axi"] # TODO find it automatically
         adapter_paths = []
 
         if intf.type == intc_intf.type:
