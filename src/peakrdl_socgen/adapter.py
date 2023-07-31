@@ -106,10 +106,10 @@ class AdaptersPath:
 
 
         # Get adapter to extract interface parameters
-        inst_name = ad_type
+        inst_name = ad_type + "_" + adapt_from.module.node.get_path().replace(".", "_") + "2" + end_intf.module.node.get_path().replace(".", "_") + "_" 
         adapter = self.rdlc.elaborate(
                 top_def_name=ad_type,
-                inst_name=inst_name,
+                inst_name=inst_name
                 ).get_child_by_name(inst_name)
 
         # Override all matching integer parameters from adapt_from to SLV_INTF parameter

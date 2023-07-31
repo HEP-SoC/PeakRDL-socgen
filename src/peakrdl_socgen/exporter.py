@@ -19,6 +19,11 @@ def get_file_content(file : str) -> str:
 def get_file_name(file : str) -> str:
     return os.path.basename(file)
 
+def short_str(string : str, length : int = 20) -> str:
+    if len(string) > length:
+        return string[0:length] + "..."
+    return string
+
 class SocExporter():
     def __init__(self):
         self.subsystem_template_dir = "subsystem"
@@ -154,6 +159,7 @@ class SocExporter():
             'zip' : zip,
             'int' : int,
             'path_conv' : dot_to_uscore,
+            'short' : short_str
             })
 
         res = env.get_template('dot.j2').render(context)

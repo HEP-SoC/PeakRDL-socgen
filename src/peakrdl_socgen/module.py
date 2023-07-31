@@ -124,11 +124,18 @@ class Module:
         return self.node.inst_name + "_" + s.name
 
     def create_ports(self):
-        intfs_prop = self.node.get_property("ifports")
-        if intfs_prop is None:
+        intfs_prop = self.node.get_property("ifports", default=[])
+        axi_intfs  = self.node.get_property("axi_intfs", default=[])
+        axil_intfs  = self.node.get_property("axil_intfs", default=[])
+        apb_intfs  = self.node.get_property("apb_intfs", default=[])
+        obi_intfs  = self.node.get_property("obi_intfs", default=[])
+        nmi_intfs  = self.node.get_property("nmi_intfs", default=[])
+        all_intf_props = intfs_prop + axi_intfs + axil_intfs + apb_intfs + obi_intfs + nmi_intfs
+
+        if all_intf_props is None:
             return []
         ports = []
-        for p in intfs_prop:
+        for p in all_intf_props:
             port = create_intf_port(
                     rdlc=self.rdlc,
                     module=self,

@@ -26,7 +26,7 @@ digraph {{ subsystems[0].node.orig_type_name }} {
                 {% for intf in mod.getSlavePorts() -%}
                     <{{ intf.getXdotName() }}>{{ intf.getXdotName() }}{% if not loop.last %} | {% endif %}
                 {%- endfor -%}
-                } | {% endif %} {{ mod.node.orig_type_name }}\n\n{{ mod.node.inst_name }} {% if mod.getMasterPorts()|length > 0 %} | {
+                } | {% endif %} {{ mod.node.orig_type_name|short }}\n\n{{ mod.node.inst_name|short }} {% if mod.getMasterPorts()|length > 0 %} | {
                 {%- for intf in mod.getMasterPorts() -%}
                     <{{ intf.getXdotName() }}>{{ intf.getXdotName() }}{% if not loop.last %} | {% endif %}
                 {%- endfor -%} } {% endif %} } "];
