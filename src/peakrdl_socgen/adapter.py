@@ -35,8 +35,6 @@ class AdaptersPath:
     def createAdaptersOnPath(self):
         available_adapters = ["axi2axil", "axil2apb", "nmi2apb", "obi2axil", "obi2axi", "obi2apb"] # TODO find it automatically
         adapter_paths = []
-        print(self.adapt_to.type)
-        print(self.adapt_from.type)
 
         if self.adapt_from.type == self.adapt_to.type: # TODO different parameters
             return None
@@ -47,8 +45,6 @@ class AdaptersPath:
             adapter_name =  self.adapt_from.type.replace("_intf_node", "") + "2" + self.adapt_to.type.replace("_intf_node", "")
         elif self.adapt_from.modport.name == "slave":
             adapter_name = self.adapt_from.type.replace("_intf_node", "") + "2" + self.adapt_to.type.replace("_intf_node", "")
-            
-        print(adapter_name)
 
         if adapter_name in available_adapters:
             return [self.createAdapter(
