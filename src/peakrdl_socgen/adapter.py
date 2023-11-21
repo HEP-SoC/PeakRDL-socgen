@@ -35,6 +35,8 @@ class AdaptersPath:
     def createAdaptersOnPath(self):
         available_adapters = ["axi2axil", "axil2apb", "nmi2apb", "obi2axil", "obi2axi", "obi2apb"] # TODO find it automatically
         adapter_paths = []
+        print(self.adapt_to.type)
+        print(self.adapt_from.type)
 
         if self.adapt_from.type == self.adapt_to.type: # TODO different parameters
             return None
@@ -45,6 +47,8 @@ class AdaptersPath:
             adapter_name =  self.adapt_from.type.replace("_intf_node", "") + "2" + self.adapt_to.type.replace("_intf_node", "")
         elif self.adapt_from.modport.name == "slave":
             adapter_name = self.adapt_from.type.replace("_intf_node", "") + "2" + self.adapt_to.type.replace("_intf_node", "")
+            
+        print(adapter_name)
 
         if adapter_name in available_adapters:
             return [self.createAdapter(
@@ -67,6 +71,8 @@ class AdaptersPath:
             for mst in fitting_masters:
                 if slv.split("2")[1] == mst.split("2")[0]:
                     adapter_paths.append([slv, mst])
+                    
+        assert len(adapter_paths) > 0, f"Could not find appropriate adapter or combination from {self.adapt_from.type} to {self.adapt_to.type}"
 
         adapters = []
         for cnt, adapter in enumerate(adapter_paths[0]): # IF master TODO slave
@@ -92,8 +98,6 @@ class AdaptersPath:
                         )
                 adapters.append(adapter)
 
-
-        assert len(adapter_paths) > 0, f"Could not find appropriate adapter or combination for {intf.type} modport: {intf.modport} and {intc_intf.type}"
 
         return adapters
 
