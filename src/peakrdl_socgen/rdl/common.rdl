@@ -67,7 +67,7 @@ property intcw_l {
 // desc = "Slave select signal, should not be shared between slaves";
 property ss {
     type = boolean;
-    component = addrmap;
+    component = signal;
 };
 
 property interconnect_name {

@@ -4,7 +4,7 @@ from systemrdl.core.parameter import Parameter
 from typing import List
 import math
 
-from systemrdl.rdltypes.array import ArrayPlaceholder
+from systemrdl.rdltypes.array import ArrayedType
 
 from .intf import Intf, Modport, create_intf_port
 from .signal import Signal
@@ -88,7 +88,7 @@ class Module:
 
         hw_params = []
         for cnt, param in enumerate(params):
-            if isinstance(param.param_type, ArrayPlaceholder) and param.param_type.element_type == int:
+            if isinstance(param.param_type, ArrayedType) and param.param_type.element_type == int:
                 param_tmp = {'name': param.name, 'value': self.paramIntArrayToStr(param.get_value())}
             elif param.param_type == str:
                 param_tmp = {'name' : param.name, 'value' : '""' if param.get_value() == "" else param.get_value()}
@@ -118,7 +118,7 @@ class Module:
             return True
 
         return isinstance(param.get_value(), int) or \
-               (isinstance(param.param_type, ArrayPlaceholder) and param.param_type.element_type == int)
+               (isinstance(param.param_type, ArrayedType) and param.param_type.element_type == int)
 
     def getSigVerilogName(self, s : Signal, intf : "Intf | None" = None) -> str:
         return self.node.inst_name + "_" + s.name

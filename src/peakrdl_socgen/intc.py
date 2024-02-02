@@ -1,6 +1,6 @@
 from systemrdl import RDLCompiler
 from systemrdl.node import AddrmapNode
-from systemrdl.rdltypes.array import ArrayPlaceholder
+from systemrdl.rdltypes.array import ArrayedType
 from systemrdl.rdltypes.user_struct import UserStruct
 from typing import List
 import math
@@ -103,20 +103,20 @@ class Intc(Module):
         params = {}
         for p in dflt_intc.inst.parameters:
             # MEM_MAP scheme, array of START, END adresses
-            if p.name == "MEM_MAP" and isinstance(p.param_type, ArrayPlaceholder):
+            if p.name == "MEM_MAP" and isinstance(p.param_type, ArrayedType):
                 if p.param_type.element_type == int:
                     params['MEM_MAP'] = []
                     for c in self.getSlaveNodes():
                         params['MEM_MAP'].extend([c.absolute_address, c.absolute_address + c.size])
 
             # SLAVE_ADDR, SLAVE_MASK scheme
-            if p.name == "SLAVE_ADDR" and isinstance(p.param_type, ArrayPlaceholder):
+            if p.name == "SLAVE_ADDR" and isinstance(p.param_type, ArrayedType):
                 if p.param_type.element_type == int:
                     params['SLAVE_ADDR'] = []
                     for c in reversed(self.getSlaveNodes()):
                         params['SLAVE_ADDR'].append(c.absolute_address)
 
-            if p.name == "SLAVE_MASK" and isinstance(p.param_type, ArrayPlaceholder):
+            if p.name == "SLAVE_MASK" and isinstance(p.param_type, ArrayedType):
                 if p.param_type.element_type == int:
                     params['SLAVE_MASK'] = []
                     for c in reversed(self.getSlaveNodes()):

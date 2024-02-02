@@ -27,8 +27,6 @@ def short_str(string : str, length : int = 20) -> str:
 class SocExporter():
     def __init__(self):
         self.subsystem_template_dir = "subsystem"
-        self.common_rdl_f = os.path.join(os.path.dirname(__file__), "rdl", "common.rdl")
-
         # self.subsystem = Subsystem()
 
     def list_files(self,
@@ -50,7 +48,6 @@ class SocExporter():
             b_files : List[str],
             ):
         rdlc = RDLCompiler()
-        rdlc.compile_file(self.common_rdl_f)
         for input_file in b_files:
             rdlc.compile_file(input_file)
         root = rdlc.elaborate()
