@@ -36,6 +36,8 @@ class Signal:
         self.output = node.get_property('output', default=False) != False
         self.input = node.get_property('input', default=False) != False
         assert not (self.output==True and self.input) == True, f"Signal cannot be both input and output {self.name}"
+        
+        self.data_type = node.get_property('datatype', default='wire')
 
     @property
     def name(self):
@@ -46,11 +48,11 @@ class Signal:
     @property
     def verilogDir(self):
         if self.input:
-            return "input wire"
+            return f"input {self.data_type}"
         elif self.output:
-            return "output wire"
+            return f"output {self.data_type}"
         elif self.is_clk or self.is_rst:
-            return "input wire"
+            return f"input {self.data_type}"
 
         assert False, f"Signal does not have input or output"
 

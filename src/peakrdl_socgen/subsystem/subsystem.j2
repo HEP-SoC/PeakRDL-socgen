@@ -44,7 +44,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys_params|length > 0 %} #(
     {% for s in module.signals %}
         {% set sig_name = module.node.inst_name + "_" + s.name %}
         {% if not subsys.hasSignal(sig_name) %}
-    wire [{{ s.width-1 }}:0] {{ sig_name }};
+    {{ s.data_type }} [{{ s.width-1 }}:0] {{ sig_name }};
         {% endif %}
     {% endfor %}
 
@@ -86,7 +86,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys_params|length > 0 %} #(
     {% for s in intc.signals %}
         {% set sig_name = intc.node.inst_name + "_" + s.name %}
         {% if not subsys.hasSignal(sig_name) %}
-    wire [{{ s.width-1 }}:0] {{ sig_name }};
+    {{ s.data_type }} [{{ s.width-1 }}:0] {{ sig_name }};
         {% endif %}
     {% endfor %}
 
@@ -109,7 +109,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys_params|length > 0 %} #(
 
     {# // Interconnect signals #}
     {# {% for s in intc.signals %} #}
-    {# wire [{{ s.width -1}}:0] {{ intc.getSigVerilogName(s) }}; #}
+    {# {{ s.data_type }} [{{ s.width -1}}:0] {{ intc.getSigVerilogName(s) }}; #}
     {# {% endfor %} #}
 
 
