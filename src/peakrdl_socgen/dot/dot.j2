@@ -11,7 +11,7 @@ digraph {{ subsystems[0].node.orig_type_name }} {
             {% if mod.__class__.__name__ == "Module" and mod.isOnlyMaster %}
                 {% set style = "style=filled fillcolor=coral," %}
             {% elif mod.__class__.__name__ == "Module" and mod.isOnlySlave %}
-                {% set style = "style=filled fillcolor=lightgreen," %}
+                {% set style = "style=filled fillcolor=palegreen," %}
             {% elif mod.__class__.__name__ == "Intc" %}
                 {% set style = "style=filled fillcolor=lightblue," %}
             {% elif mod.__class__.__name__ == "Subsystem" %}
