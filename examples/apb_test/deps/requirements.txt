@@ -1,0 +1,6 @@
+# Use original repo if this changes is ever integrated (see https://github.com/SystemRDL/PeakRDL-systemrdl/issues/4)
+-e git+https://github.com/benoitdenkinger/PeakRDL-systemrdl.git@7eab1817d3373736d7d7a51ba07f0dc9a7a883a5#egg=peakrdl_systemrdl
+# Use this repo as the peakrdl socgen plugin
+-e ../../../
+peakrdl==1.1.0
+systemrdl-compiler==1.27.3

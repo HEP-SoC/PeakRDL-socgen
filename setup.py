@@ -15,9 +15,9 @@ setuptools.setup(
     version=version,
     author="Risto Pejasinovic",
     author_email="risto.pejasinovic@gmail.com",
-    description="Generate CPP Hardware Abstraction Layer libraries",
+    description="Generate SoC interconnect",
     long_description=long_description,
-    url="https://github.com/Risto97/PeakRDL-socgen",
+    url="https://gitlab.cern.ch/socrates/peakrdl/PeakRDL-socgen",
     package_dir={'': 'src'},
     packages=[
         'peakrdl_socgen',
@@ -48,10 +48,10 @@ setuptools.setup(
         "Intended Audience :: Developers",
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
-        "Topic :: Software Development :: Documentation",
+        "Topic :: Hardware Development :: Documentation",
     ),
     project_urls={
-        "Source": "https://github.com/Risto97/PeakRDL-socgen",
-        "Tracker": "https://github.com/Risto97/PeakRDL-socgen/issues",
+        "Source": "https://gitlab.cern.ch/socrates/peakrdl/PeakRDL-socgen",
+        "Tracker": "https://gitlab.cern.ch/socrates/peakrdl/PeakRDL-socgen/issues",
     },
 )

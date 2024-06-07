@@ -1,142 +1,72 @@
-from sys import intern
-from colorama import init
 from systemrdl import RDLCompiler, RDLListener
-from systemrdl.node import Node, AddrmapNode
+from systemrdl.node import AddrmapNode
 from typing import List
 
 from .module import Module
-from .intf import Intf, IntfPort, Modport
+from .intf import IntfPort
 from .intc import Intc
-from .signal import Signal
 from .adapter import AdaptersPath
 
-
-def isSubsystem(node : Node ):
-    if not isinstance(node, AddrmapNode):
-        return False
-    if node.get_property("subsystem") is not None:
-        return True 
-    return False 
-
-def getOrigTypeName(node : Node) -> str:
-    if node.orig_type_name is not None:
-        return node.orig_type_name
-    else:
-        return node.inst_name
-
 class SubsystemListener(RDLListener):
+    """This class extend the RDLListener to extract the subsystem nodes (i.e., the
+    nodes with the subsytem property set).
+    """
     def __init__(self):
         self.subsystem_nodes = []
-        self.subsystems = []
-        # Dont print anything here
 
     def enter_Addrmap(self, node):
-        if isSubsystem(node):
-            self.subsystem_nodes.append(node)      
+        """Executed when entering an addrmap node."""
+        if node.get_property("subsystem") is not None:
+            self.subsystem_nodes.append(node)
 
 class Subsystem(Module): # TODO is module and subsystem the same?
-    def __init__(self,
-            node : AddrmapNode,
-            rdlc : RDLCompiler,
-            ):
+    """This class extend the Module class for subsytem (i.e., generated module)."""
+    def __init__(self, node: AddrmapNode, rdlc: RDLCompiler):
         super().__init__(node, rdlc)
 
-        self.modules =  self.getModules() 
-        self.signals = self.propagateSignals()
-        self.connections = [] #self.getConnections()
-    
+        # List of all addrmap childrens (either with a Module or a Subsystem handle)
+        self.modules = self.getModules()
+
+        # List of module's children master ports and module's slave ports
         self.initiators = self.getInitiators()
+        # List of module's children slave ports and module's master ports
         self.endpoints = self.getEndpoints()
 
-        # self.intc_wraps = self.getUserDefinedIntcws()
-        self.intc_wraps = []
-
-        self.intcs = []
         self.adapter_paths = []
 
-        self.intcs.extend(self.getUserDefinedIntcs())
+        # First get the user defined ones to remove them from the initiators and endpoints lists
+        self.intcs = self.getUserDefinedIntcs()
+        # Then append the default interconnect built from the remaining initiatiors and endpoints
         self.intcs.append(self.create_intc(self.initiators, self.endpoints))
 
-    def getAllModules(self) -> "List[Modules]":
-        mods = self.getModules()
-        mods.extend(self.intcs)
-        for ap in self.adapter_paths:
-            mods.extend(ap.adapters)
+
+    def getAllModules(self) -> List[Module]:
+        """Returns the child modules, interconnects, and adapters."""
+        mods = self.modules + self.intcs + self.getAllAdapters()
         return mods
 
     def getAllAdapters(self):
+        """Returns the interconnect adapters."""
         adapters = []
         for ap in self.adapter_paths:
             adapters.extend(ap.adapters)
         return adapters
 
-
-    def propagateSignals(self) -> "List[Signal]":
-        signals = []
-        for mod in self.modules:
-            for s in mod.signals:
-                if s.node.get_property("propagate", default=False):
-                    signals.append(Signal(
-                        node=s.node, 
-                        prefix=mod.node.inst_name + "_" + s.prefix,
-                        cap=s.cap
-                        ))
-        return self.signals + signals 
-
-    # def getConnection(self, first : Intf, second : Intf):
-    #     if first.module_node == self.node and second.module_node == self.node:
-    #         assert first.modport != second.modport, f"If both intfs are subsystem port, they need to be different modport"
-    #         if first.modport == Modport.slave:
-    #             return (first, second)
-    #         else:
-    #             return (second, first)
-    #
-    #     if first.module_node == self.node or second.module_node == self.node: # But not both
-    #         assert first.modport == second.modport, f"If one intf is subsystem port, and the other is module port, they need to be the same modport"
-    #         if first.modport == Modport.slave:
-    #             return (first, second)
-    #         else:
-    #             return (second, first)
-    #
-    #     if first.module_node != self.node and second.module_node != self.node:
-    #         assert first.modport != second.modport, f"Intf modports must be different to connect them"
-    #         if first.modport == Modport.master:
-    #             return (first, second)
-    #         else:
-    #             return (second, first)
-    #
-    #     assert False, "Error reached end of this function"
-    #
-    # def getConnections(self):
-    #     conn_p = self.node.get_property("connections", default = [])
-    #
-    #     conns = []
-    #     for conn in conn_p:
-    #         assert len(conn.split("->")) == 2, f"Wrong format for connection {conn}"
-    #         conn = conn.split("->")
-    #         conns.append((conn[0].replace(" ", ""), conn[1].replace(" ", "")))
-    #
-    #     connections = []
-    #     for first, second in conns:
-    #     # for first, second in zip(conn_p.split())
-    #         conn_ifs = (None, None)
-    #         for i in self.getChildIntfs():
-    #             node_rel = i.module_node.get_path().replace(self.node.get_path(), "")
-    #             node_rel = node_rel[1:] if node_rel.startswith('.') else node_rel
-    #
-    #             if node_rel + "." + i.sig_prefix == first:
-    #                 conn_ifs = (i, conn_ifs[1])
-    #             if node_rel + "." + i.sig_prefix == second:
-    #                 conn_ifs = (conn_ifs[0], i)
-    #
-    #         assert all(x is not None for x in conn_ifs), f"Could not find one of the connections: {first} = {conn_ifs[0]} | {second} = {conn_ifs[1]}"
-    #         assert conn_ifs[0].modport != conn_ifs[1].modport, f"Connection interfaces need to be slave and master {conn_ifs[0].sig_prefix}, {conn_ifs[1].sig_prefix}" # type: ignore  #  TODO slave to slave allowed if one of the intfs is port of subsystem ??? NOT needed checked in intc_wrapper createConnectionIntfs????
-    #         connections.append(conn_ifs)
-    #
-    #     return connections
-    #
-
     def getUserDefinedIntcs(self):
+        """Returns the list of interconnects explicitely defined.
+
+        By default, SoCgen assume a single unified bus interconnection. To create multiple
+        interconnects, you have to explicitely instantiate the extra ones using the
+        'intc_l' property and intc structure inside an addrmap node. For example:
+
+        intc_l = '{
+            intc '{
+                name:"user_intc",
+                slv_ports:'{"<path_to_slave_intf_0>", "<path_to_slave_intf_1>", ...},
+                mst_ports:'{"<path_to_master_intf_0>", "<path_to_master_intf_1>", ...},
+            }
+        };
+        """
         intcs = []
         intc_l = self.node.get_property('intc_l', default=[])
 
@@ -146,12 +76,14 @@ class Subsystem(Module): # TODO is module and subsystem the same?
 
             for mst in intc.mst_ports:
                 intf = self.findPortInChildren(mst)
+                # Remove the intf from the default interconnect
                 if intf in self.endpoints:
                     self.endpoints.remove(intf)
                 ext_mst_ports.append(intf)
 
             for slv in intc.slv_ports:
                 intf = self.findPortInChildren(slv)
+                # Remove the intf from the default interconnect
                 if intf in self.initiators:
                     self.initiators.remove(intf)
                 ext_slv_ports.append(intf)
@@ -166,15 +98,51 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         return intcs
 
 
-    def findPortInChildren(self, string : str):
+    def findPortInChildren(self, string: str) -> IntfPort:
+        """Returns an interface port handler with a name matching the given string.
+
+        For example, you have the following user defined interconnect in your addrmap node:
+
+        addrmap my_addrmap
+        {
+            ...
+            intc_l = '{
+                intc '{
+                    name:"user_intc",
+                    slv_ports:'{"slv_module0.slv_port_", "slv_module1.slv_port_"},
+                    mst_ports:'{"mst_module0.mst_port_", "mst_module1.mst_port_"},
+                }
+            };
+            ...
+        };
+
+        In your slave/master module addrmap nodes you must define an interface with the
+        prefix 'slv_port_'/'mst_port_'. For example:
+
+        addrmap slv_module0 #(
+            obi_intf INTF = obi_intf'{
+                ADDR_WIDTH:32,
+                DATA_WIDTH:32,
+                prefix:"slv_port_",
+                modport:Modport::slave,
+                cap:false
+            }
+        ){
+            ...
+            ifports = '{INTF};
+            ...
+        };
+
+        """
         for intf in self.getChildPorts():
-            node_rel = intf.module.node.get_path().replace(self.node.get_path(), "")
-            node_rel = node_rel[1:] if node_rel.startswith('.') else node_rel
+            # Get the relative path of the intf from this module
+            node_rel = intf.module.node.get_path().replace(self.node.get_path() + ".", "")
             if (node_rel + "." + intf.prefix) == string:
                 return intf
         assert False, f"Could not find interface {string}"
 
     def getModules(self):
+        """Returns Module or Subsystem objects from node addrmap children."""
         modules = []
         for node in self.getAddrmaps():
             if node.get_property('subsystem'):
@@ -184,53 +152,49 @@ class Subsystem(Module): # TODO is module and subsystem the same?
 
         return modules
 
-    # def getName(self):
-    #     return self.getOrigTypeName()       
-
-    def getEndpoints(self) -> List[Intf]:
+    def getEndpoints(self) -> List[IntfPort]:
+        """Returns a list of children module/subsystem slave ports and subsystem master ports."""
+        # Get all the slave ports of the children modules and subsystems
         endpoints = [intf for module in self.modules for intf in module.getSlavePorts()]
-        endpoints.extend(self.getMasterPorts())
+        # Add the master ports of the current subsystem
+        endpoints.extend(self.getMasterPorts()) # WHY?
         return endpoints
 
-    def getInitiators(self) -> List[Intf]:
+    def getInitiators(self) -> List[IntfPort]:
+        """Returns a list of children module/subsystem master ports and subsystem slave ports."""
+        # Get all the master ports of the children modules and subsystems
         initiators = [intf for module in self.modules for intf in module.getMasterPorts()]
-        initiators.extend(self.getSlavePorts())
+        # Add the slave ports of the current subsystem
+        initiators.extend(self.getSlavePorts()) # WHY?
         return initiators
 
-    def getPorts(self) -> List[Intf]:
+    def getPorts(self) -> List[IntfPort]:
         return self.getEndpoints() + self.getInitiators()
 
     def getChildPorts(self):
+        """Returns the module children ports."""
         return [port for module in self.modules for port in module.ports]
 
-    ### INTERCONNECT
-
-    def determineIntc(self,
-                      initiators : "List[IntfPort]") -> "tuple[str, str]":
-        intf_type_cnt = {}
-        for intf in initiators:
-            intf_type_cnt[intf.type] = 0
-        for intf in initiators:
-            intf_type_cnt[intf.type] += 1
-
-        max_intf = max(intf_type_cnt, key=intf_type_cnt.get) # type: ignore
-
-        intc_type = max_intf.replace("_intf", "_interconnect")
-
-        return intc_type, max_intf
-
     def create_intc(self,
-                    slv_ports : "List[Intf]",
-                    mst_ports : "List[Intf]",
-                    inst_prefix : str="",
-                    ):
+                    slv_ports: List[IntfPort],
+                    mst_ports: List[IntfPort],
+                    inst_prefix: str="",
+                    ) -> Intc:
 
-        _, intf_type = self.determineIntc(slv_ports)
-        ports_need_adapter = [port for port in slv_ports + mst_ports if port.type != intf_type]
+        # Get the most used interface from slave ports (slave from the interconnect point of view)
+        # All slaves must be identical
+        # TODO add adapter for slave ports too
+        intf_type = slv_ports[0].type
+        # Check all slaves are similar
+        ports_need_adapter = [port for port in slv_ports if port.type != intf_type]
+        assert ports_need_adapter == [], f"Different types of interconnect slave ports is not supported for now."
+
+        # Check if all the master ports have the same type or if adapter(s) is needed
+        ports_need_adapter = [port for port in mst_ports if port.type != intf_type]
 
         for p in ports_need_adapter:
             self.adapter_paths.append(AdaptersPath(
-                    adapt_from=slv_ports[0],
+                    adapt_from=slv_ports[0], # For now all slaves are identical
                     adapt_to=p,
                     rdlc=self.rdlc,
                     )
@@ -238,20 +202,24 @@ class Subsystem(Module): # TODO is module and subsystem the same?
 
             for cnt, mst_p in enumerate(mst_ports):
                 if mst_p == p:
-                    mst_ports[cnt] = self.adapter_paths[-1].adapters[0].slv_port;
+                    # Find the corresponding master port (i.e., going to slave block)
+                    # and change it to the last created AdapterPath's first adapter slave port
+                    # !!! A master port get assigned a slave port (i.e., modport == 'slave') !!!
+                    # TODO Find a less error prone alternative -> actually this helps for the below assertion check
+                    mst_ports[cnt] = self.adapter_paths[-1].adapters[0].slv_port
 
-
+        # Check all the ports originate from this subsystem
         for p in slv_ports:
+            # Check the port mode to avoid checking adapters which are only connected internally
             if p.modport.name == "slave":
                 assert p.module.node == self.node, f"Interface port {p} is slave but is not a port of the subsystem node"
 
         for p in mst_ports:
+            # Check the port mode to avoid checking adapters which are only connected internally
             if p.modport.name == "master":
                 assert p.module.node == self.node, f"Interface port {p} is master but is not a port of the subsystem node"
 
-        # assert all(intf.type == slv_ports[0].type for intf in slv_ports + mst_ports), "Not all ports of the interconnect are of the same protocol"
-        # intc_name = slv_ports[0].type.replace("_intf_node", "_interconnect")
-
+        # At that point all ports have the same type
         return Intc(
                 rdlc=self.rdlc,
                 ext_slv_ports=slv_ports,
