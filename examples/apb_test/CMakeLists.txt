@@ -3,18 +3,22 @@ project(apb_soc NONE)
 
 include("deps/deps.cmake")
 
-add_library(${PROJECT_NAME} INTERFACE
-    )
+add_ip(${PROJECT_NAME}
+    VENDOR cern
+    LIBRARY ip
+    VERSION 0.0.1
+)
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY RDL_FILES 
+
+ip_sources(${IP} SYSTEMRDL
     ${PROJECT_SOURCE_DIR}/apb_slave.rdl
     ${PROJECT_SOURCE_DIR}/apb_master.rdl
     ${PROJECT_SOURCE_DIR}/apb_soc.rdl
-    )
+)
 
-target_link_libraries(${PROJECT_NAME} INTERFACE
-    socgen
-    socgen_apb
+ip_link(${IP}
+    cern::socgen::base
+    cern::socgen::apb
     )
 
 peakrdl_socgen(${PROJECT_NAME})
