@@ -33,32 +33,35 @@ digraph {{ subsystems[0].node.orig_type_name }} {
             {% endif %}
         {% endfor %}
 
-
         {% for intc in subsys.intcs %}
-            {% for port in intc.get_intfs() %}
-                {% if port.params.modport.name == "master" %}
-            {{ intc.node.get_path()|path_conv }}:{{ port.getXdotName() }} -> {{ port.orig_intf.module.node.get_path()|path_conv }}:{{ port.orig_intf.getXdotName() }};
-                {% else %}
-            {{ port.orig_intf.module.node.get_path()|path_conv }}:{{ port.orig_intf.getXdotName() }} -> {{ intc.node.get_path()|path_conv }}:{{ port.getXdotName() }};
-                {% endif %}
+            // Interconnect {{ intc.node.inst_name }}
+            // Master ports
+            {% for ext_intf, intf in zip(intc.ext_slv_ports, intc.getSlavePorts()) %}
+            {{ ext_intf.module.node.get_path()|path_conv }}:{{ ext_intf.getXdotName() }} -> {{ intc.node.get_path()|path_conv }}:{{ intf.getXdotName() }}
+            {% endfor %}
+            // Slave ports
+            {% for ext_intf, intf in zip(intc.ext_mst_ports, intc.getMasterPorts()) %}
+            {{ intc.node.get_path()|path_conv }}:{{ intf.getXdotName() }} -> {{ ext_intf.module.node.get_path()|path_conv }}:{{ ext_intf.getXdotName() }}
             {% endfor %}
 
-        {% endfor %}
-        
+        {% endfor -%}
+
         {% for apath in subsys.adapter_paths %}
+            // Adapter {{ apath.adapt_from.type.replace("_intf_node", "") }} <-> {{ apath.adapt_to.type.replace("_intf_node", "") }}
             {% set last_mst_port = apath.adapters[0].mst_port %}
             {% for adapter in apath.adapters %}
                 {% if not loop.first %}
-            {{ last_mst_port.module.node.get_path()|path_conv }}:{{ last_mst_port.getXdotName() }} ->  {{ adapter.node.get_path()|path_conv }}:{{ adapter.slv_port.prefix }};
+            {{ last_mst_port.module.node.get_path()|path_conv }}:{{ last_mst_port.getXdotName() }} -> {{ adapter.node.get_path()|path_conv }}:{{ adapter.slv_port.getXdotName() }};
                 {% endif %}
                 {% set last_mst_port = adapter.mst_port %}
             {% endfor %}
-            {{ apath.adapters[-1].mst_port.module.node.get_path()|path_conv }}:{{ apath.adapters[-1].mst_port.prefix }} -> {{ apath.adapt_to.module.node.get_path()|path_conv }}:{{ apath.adapt_to.prefix }};
+            {{ apath.adapters[-1].mst_port.module.node.get_path()|path_conv }}:{{ apath.adapters[-1].mst_port.getXdotName() }} -> {{ apath.adapt_to.module.node.get_path()|path_conv }}:{{ apath.adapt_to.getXdotName() }};
         {% endfor %}
+
     {% endfor %}
 
     {% for subsys in subsystems %}
-        }
+    }
     {% endfor %}
 }
 
