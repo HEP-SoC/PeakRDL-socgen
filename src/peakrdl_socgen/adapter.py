@@ -46,6 +46,8 @@ class AdaptersPath:
         elif self.adapt_from.modport.name == "slave":
             adapter_name = self.adapt_from.type.replace("_intf_node", "") + "2" + self.adapt_to.type.replace("_intf_node", "")
 
+        print(f"Adapter name: {adapter_name}")
+
         # If a direct adapter exist return it
         if adapter_name in available_adapters:
             return [self.createAdapter(
