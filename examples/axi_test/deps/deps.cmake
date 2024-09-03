@@ -3,7 +3,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/CPM.cmake)
 
 CPMAddPackage(
     NAME SoCMake  
-    GIT_TAG master
+    GIT_TAG v0.2.6
     GIT_REPOSITORY "ssh://git@gitlab.cern.ch:7999/socmake/SoCMake.git"
     )
 
