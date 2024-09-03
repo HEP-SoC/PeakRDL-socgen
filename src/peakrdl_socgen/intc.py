@@ -127,10 +127,6 @@ class Intc(Module):
                 sv_intc_prefix = self.inst_name.replace("interconnect_i", "intc").upper() + "_ADDR_RULES"
                 params['SOCGEN_XBAR_ADDR_RULES'] = sv_intc_prefix
 
-            elif p.name == "SOCGEN_INTC_NAME":# and isinstance(p.param_type, str): # TODO why not working
-                sv_intc_prefix = self.inst_name.replace("interconnect_i", "intc").upper() + "_NAME"
-                params['SOCGEN_INTC_NAME'] = sv_intc_prefix
-
         return params
 
     def _getSlaveNodes(self) -> List[IntfPort]:
