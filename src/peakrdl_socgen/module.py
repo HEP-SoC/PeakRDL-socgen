@@ -184,6 +184,7 @@ class Module:
         obi_intfs  = self.node.get_property("obi_intfs", default=[])
         nmi_intfs  = self.node.get_property("nmi_intfs", default=[])
         apb_rt_intfs  = self.node.get_property("apb_rt_intfs", default=[])
+        obiTMR_intfs  = self.node.get_property("obiTMR_intfs", default=[])
 
         obi_intc_ports = self.node.get_property("obi_intc_ports", default=[])
         apb_intc_ports = self.node.get_property("apb_intc_ports", default=[])
@@ -191,10 +192,11 @@ class Module:
         axil_intc_ports = self.node.get_property("axil_intc_ports", default=[])
         nmi_intc_ports = self.node.get_property("nmi_intc_ports", default=[])
         apb_rt_intc_ports = self.node.get_property("apb_rt_intc_ports", default=[])
+        obiTMR_intc_ports = self.node.get_property("obiTMR_intc_ports", default=[])
 
         all_intf_props = intfs_prop + axi_intfs + axil_intfs + apb_intfs + obi_intfs + nmi_intfs + apb_rt_intfs + \
                          obi_intc_ports + apb_intc_ports + axi_intc_ports + axil_intc_ports + nmi_intc_ports + \
-                         apb_rt_intc_ports
+                         apb_rt_intc_ports + obiTMR_intfs + obiTMR_intc_ports
 
         ports = []
         for p in all_intf_props:

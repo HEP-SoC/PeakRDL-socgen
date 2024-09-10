@@ -33,7 +33,8 @@ class AdaptersPath:
 
     def createAdaptersOnPath(self):
          # TODO find this list automatically
-        available_adapters = ["axi2axil", "axil2apb", "nmi2apb", "obi2axil", "obi2axi", "obi2apb", "obi2apb_rt", "apb2apb_rt", "apb_rt2apb"]
+        available_adapters = ["axi2axil", "axil2apb", "nmi2apb", "obi2axil", "obi2axi", "obi2apb", "obi2apb_rt",  "obiTMR2obi",
+            "obiTMR2apb_rt", "apb2apb_rt", "apb_rt2apb"]
         adapter_paths = []
 
         if self.adapt_from.type == self.adapt_to.type: # TODO check if different parameters
