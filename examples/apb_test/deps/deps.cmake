@@ -10,7 +10,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/CPM.cmake) # Include the CPM.cmake downloader
 
 CPMAddPackage(
     NAME SoCMake
-    GIT_TAG v0.2.1
+    GIT_TAG v0.2.6
     GIT_REPOSITORY "git@github.com:HEP-SoC/SoCMake.git"
 )
 
