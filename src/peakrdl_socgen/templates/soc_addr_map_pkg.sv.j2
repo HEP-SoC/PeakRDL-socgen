@@ -21,8 +21,6 @@ package soc_addr_map_pkg;
 
     localparam {{ inct_prefix }}_BASE_ADDRESS  = 32'h{{ '%08x' % intc.subsystem_node.inst.addr_offset }};
 
-    localparam {{ inct_prefix }}_NAME  = "{{ inct_prefix }}";
-
     {# GENERATE SLAVE MEMORY MAP ADDRESSES #}
     {%- for port in intc.ext_mst_ports %}
       {% set port_prefix = (port.module.node.inst_name + "_" + inct_prefix).upper() %}
