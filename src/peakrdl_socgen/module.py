@@ -75,31 +75,20 @@ class Module:
         #     module_logger.warning(f"Module {self.getOrigTypeName()} has no signal {sig_name} (ignore if signal linked through 'path')")
         # return False
 
-    def getClkOrRst(self, s: Signal) -> Signal:
-        """Returns a clock or reset Signal object handle."""
-        if s.isClk():
-            return self.getClk()
-        if s.isRst():
-            return self.getRst()
-
-    def getClk(self) -> Signal:
-        """Returns a clock Signal object handle."""
+    def getClks(self) -> Signal:
+        """Returns a list of clock Signal object handles."""
         clks = [clk for clk in self.signals if clk.isClk()]
         if len(clks) > 0:
-            if len(clks) > 1:
-                module_logger.warning(f'Multiple clocks found for module {self.getOrigTypeName()}, using the first found {clks[0].name}')
-            return clks[0]
+            return clks
         else:
             module_logger.error(f'No clock found in module {self.getOrigTypeName()}.')
             return None
 
-    def getRst(self):
-        """Returns a reset Signal object handle."""
+    def getRsts(self):
+        """Returns a list of reset Signal object handles."""
         rsts = [rst for rst in self.signals if rst.isRst()]
         if len(rsts) > 0:
-            if len(rsts) > 1:
-                module_logger.warning(f'Multiple resets found for module {self.getOrigTypeName()}, using the first found {rsts[0].name}')
-            return rsts[0]
+            return rsts
         else:
             module_logger.error(f'No reset found in module {self.getOrigTypeName()}.')
             return None
