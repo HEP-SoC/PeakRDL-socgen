@@ -114,26 +114,25 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
     {% endfor %}
 {% endfor %}
 
+
+/*========================================================================================
+*===================== Modules instantiation =============================================
+*========================================================================================*/
 {# Instantiate the child modules and subsystems (i.e., modules that are generated) clock(s) and reset(s) #}
 {% for module in subsys.getAllModules() %}
 {% for s in module.signals %}
 {% if s.is_clk %}
-    assign {{ module.getSigVerilogName(s) }} = {{ subsys.getClkOrRst(s).name }};
+    assign {{ module.getSigVerilogName(s) }} = {{ subsys.getMatchingClk(module, s).name }};
 {% endif %}
 {% if s.is_rst %}
-    {% set rst_sig = subsys.getClkOrRst(s) %}
+    {% set rst_sig = subsys.getMatchingRst(module, s) %}
     assign {{ module.getSigVerilogName(s) }} = {% if s.activehigh != rst_sig.activehigh %}!{% endif %}{{ rst_sig.name }};
 {% endif %}
 {% endfor %}
 
 {% endfor %}
 
-
-/*========================================================================================
-*===================== Modules instantiation =============================================
-*========================================================================================*/
 {# Instantiate the child modules and subsystems (i.e., modules that are generated) #}
-
 {% for module in subsys.modules %}
     // Instantiate {{ module.node.get_path() }}
     {{ module.getOrigTypeName() }} {% if module.hdl_params|length > 0 %}#(

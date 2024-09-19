@@ -1,11 +1,25 @@
 from systemrdl import RDLCompiler, RDLListener
 from systemrdl.node import AddrmapNode
 from typing import List
+import logging
 
+from .signal import Signal
 from .module import Module
 from .intf import IntfPort
 from .intc import Intc
 from .adapter import AdaptersPath
+
+# Logger generation for halnode module
+subsys_logger = logging.getLogger("subsys_logger")
+# Console handler
+ch = logging.StreamHandler()
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(name)s - %(levelname)s: %(message)s')
+ch.setFormatter(formatter)
+# add the handlers to the logger
+subsys_logger.addHandler(ch)
+# Set for more verbosity
+subsys_logger.setLevel(logging.INFO)
 
 class SubsystemListener(RDLListener):
     """This class extend the RDLListener to extract the subsystem nodes (i.e., the
@@ -151,6 +165,54 @@ class Subsystem(Module): # TODO is module and subsystem the same?
                 modules.append(Module(node, self.rdlc))
 
         return modules
+
+    def getMatchingClk(self, m: Module, s: Signal) -> Signal:
+        """Returns a clock Signal object handle."""
+        subsys_clks = self.getClks()
+        module_clks = m.getClks()
+        if len(subsys_clks) == 1:
+            # If there is only one clock, use that
+            # Issue a warning if the module to instantiate has multiple instead
+            if len(module_clks) > 1:
+                subsys_logger.warning(f'Current subsystem {self.getOrigTypeName()} only has one clock, but {m.getOrigTypeName()} has multiple. Connecting clock: {self.getOrigTypeName()}.{subsys_clks[0].name} to: {m.getOrigTypeName()}.{s.name}')
+            return subsys_clks[0]
+        else:
+            for clk in subsys_clks:
+                # First try an exact name match
+                if clk.name == s.name:
+                    subsys_logger.info(f'Clock with matching name found. Connecting clock: {self.getOrigTypeName()}.{subsys_clks[0].name} to: {m.getOrigTypeName()}.{s.name}')
+                    return clk
+                # Then match last character if subsystem and module have the same number of clocks (e.g for A, B, C or 1, 2, 3)
+                if len(subsys_clks) == len(module_clks) and clk.name[-1] == s.name[-1]:
+                    subsys_logger.info(f'Matching clock found on last character. Connecting clock: {self.getOrigTypeName()}.{subsys_clks[0].name} to: {m.getOrigTypeName()}.{s.name}')
+                    return clk
+            else:
+                subsys_logger.warning(f'No matching clock found, using the first as default. Connecting clock: {self.getOrigTypeName()}.{subsys_clks[0].name} to: {m.getOrigTypeName()}.{s.name}')
+                return subsys_clks[0]
+
+    def getMatchingRst(self, m: Module, s: Signal) -> Signal:
+        """Returns a reset Signal object handle."""
+        subsys_rsts = self.getRsts()
+        module_rsts = m.getRsts()
+        if len(subsys_rsts) == 1:
+            # If there is only one reset, use that
+            # Issue a warning if the module to instantiate has multiple instead
+            if len(module_rsts) > 1:
+                subsys_logger.warning(f'Current subsystem {self.getOrigTypeName()} only has one reset, but {m.getOrigTypeName()} has multiple. Connecting reset: {self.getOrigTypeName()}.{subsys_rsts[0].name} to: {m.getOrigTypeName()}.{s.name}')
+            return subsys_rsts[0]
+        else:
+            for rst in subsys_rsts:
+                # First try an exact name match
+                if rst.name == s.name:
+                    subsys_logger.info(f'Reset with matching name found. Connecting reset: {self.getOrigTypeName()}.{subsys_rsts[0].name} to: {m.getOrigTypeName()}.{s.name}')
+                    return rst
+                # Then match last character if subsystem and module have the same number of resets (e.g for A, B, C or 1, 2, 3)
+                if len(subsys_rsts) == len(module_rsts) and rst.name[-1] == s.name[-1]:
+                    subsys_logger.info(f'Matching reset found on last character. Connecting reset: {self.getOrigTypeName()}.{subsys_rsts[0].name} to: {m.getOrigTypeName()}.{s.name}')
+                    return rst
+            else:
+                subsys_logger.warning(f'No matching reset found, using the first as default. Connecting reset: {self.getOrigTypeName()}.{subsys_rsts[0].name} to: {m.getOrigTypeName()}.{s.name}')
+                return subsys_rsts[0]
 
     def getEndpoints(self) -> List[IntfPort]:
         """Returns a list of children module/subsystem slave ports and subsystem master ports."""
