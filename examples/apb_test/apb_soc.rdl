@@ -10,6 +10,6 @@ addrmap apb_soc #(
     apb_slave slave2;
 
     apb_master master @ 0xfffffff0;
-    clk clk;
+    clk clockA, clockB, clockC;
     rstn rstn;
 };

@@ -11,7 +11,7 @@ addrmap apb_slave #(
 
     } external memory;
 
-    clk clk;
+    clk clkA, clkB, clkC;
     rst rst;
 
     signal {output;} random_sig;
