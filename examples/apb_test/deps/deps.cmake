@@ -10,12 +10,12 @@ include(${CMAKE_CURRENT_LIST_DIR}/CPM.cmake) # Include the CPM.cmake downloader
 
 CPMAddPackage(
     NAME SoCMake
-    GIT_TAG v0.2.6
+    GIT_TAG v0.2.11
     GIT_REPOSITORY "git@github.com:HEP-SoC/SoCMake.git"
 )
 
 CPMAddPackage(
     NAME socgen_interconnects
-    GIT_TAG v0.1.0
+    GIT_TAG v0.1.5
     GIT_REPOSITORY "ssh://git@gitlab.cern.ch:7999/socrates/ip_blocks/socgen_interconnects.git"
 )
