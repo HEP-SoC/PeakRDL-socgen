@@ -4,7 +4,6 @@ from systemrdl import RDLCompiler, RDLListener
 from systemrdl.node import Node, AddrmapNode
 from typing import List
 
-from peakrdl_socgen.intc_wrapper import IntcWrapper
 from .module import Module
 from .intf import Intf, IntfPort, Modport
 from .intc import Intc
@@ -203,12 +202,6 @@ class Subsystem(Module): # TODO is module and subsystem the same?
 
     def getChildPorts(self):
         return [port for module in self.modules for port in module.ports]
-
-    # def dotGraphGetModules(self):
-    #     modules = [mod for mod in self.modules if not isinstance(mod, IntcWrapper) and not isinstance(mod, Subsystem)]
-    #     # wrap_modules = [mod for mod in self.intc_wrap.adapters ] + [self.intc_wrap.intc]
-    #     return modules #+ wrap_modules
-
 
     ### INTERCONNECT
 
