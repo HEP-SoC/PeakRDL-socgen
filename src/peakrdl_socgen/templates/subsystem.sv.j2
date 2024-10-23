@@ -7,7 +7,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 ){% endif %}(
 {# Add the explicitely named signals #}
 {% for s in subsys.signals %}
-    {{ s.verilogDir }} [{{ s.width-1 }}:0] {{ s.name }}{% if (not loop.last) or (subsys.ports|length > 0) %},{% endif %}
+    {{ s.verilogDir }}{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ s.name }}{% if (not loop.last) or (subsys.ports|length > 0) %},{% endif %}
 
 {% endfor %}
 {# Add the port interface signals #}
@@ -17,7 +17,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
     // Bus: {{ intf.prefix }}{{ intf.type }}
     {% for s in intf.signals %}
     {% set last_sig = loop.last %}
-    {{ s.verilogDir }} [{{ s.width-1 }}:0] {{ s.name }}{% if not (last_sig and last_bus) %},{% endif %}
+    {{ s.verilogDir }}{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ s.name }}{% if not (last_sig and last_bus) %},{% endif %}
 
     {% endfor %}
 {% endfor %}
@@ -37,14 +37,14 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
         {% set sig_name = module.node.inst_name + "_" + s.name %}
         {# If top module has a port with the same name don't create the signal#}
         {% if not subsys.hasSignal(sig_name) %}
-    {{ s.data_type }} [{{ s.width-1 }}:0] {{ sig_name }};
+    {{ s.data_type }}{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ sig_name }};
         {% endif %}
     {% endfor %}
 
     {# Define the port/interface signals used to connect the top module with its inner modules #}
     {% for port in module.ports %}
         {% for s in port.signals %}
-    wire [{{ s.width-1 }}:0] {{ module.node.inst_name }}_{{ s.name }}; // {{ module.node.inst_name }}  {{ port.type }}
+    wire{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ module.node.inst_name }}_{{ s.name }}; // {{ module.node.inst_name }}  {{ port.type }}
         {% endfor %}
 
     {% endfor %}
@@ -58,7 +58,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
     {% for s in intc.signals %}
         {% set sig_name = intc.node.inst_name + "_" + s.name %}
         {% if not subsys.hasSignal(sig_name) %}
-    wire [{{ s.width-1 }}:0] {{ sig_name }};
+    wire{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ sig_name }};
         {% endif %}
     {% endfor %}
 
@@ -89,7 +89,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
         {% for s in adapter.signals %}
             {% set sig_name = adapter.node.inst_name + "_" + s.name %}
             {% if not subsys.hasSignal(sig_name) %}
-    wire [{{ s.width-1 }}:0] {{ sig_name }};
+    wire{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ sig_name }};
             {% endif %}
         {% endfor %}
 

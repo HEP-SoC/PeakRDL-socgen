@@ -39,11 +39,11 @@ class Signal:
     def verilogDir(self):
         """Gets the signal direction in verilog format."""
         if self.input:
-            return f"input {self.data_type}"
+            return f"input  {self.data_type}"
         elif self.output:
             return f"output {self.data_type}"
         elif self.is_clk or self.is_rst:
-            return f"input {self.data_type}"
+            return f"input  {self.data_type}"
 
         assert False, f"Signal does not have input or output"
 
@@ -85,11 +85,11 @@ class IntfSignal(Signal):
     def verilogDir(self):
         """Gets the signal interface direction in verilog format."""
         if self.miso ^ (self.intf.modport.name == "slave"):
-            return "input wire "
+            return "input  wire"
         elif self.mosi ^ (self.intf.modport.name == "slave"):
-            return "output wire "
+            return "output wire"
 
-        assert False, f"Intf Signal does not have mosi or miso property"
+        assert False, "Intf Signal does not have mosi or miso property"
 
     def isShared(self):
         """Returns True if signal is shared (e.g., an address provided to slaves?)."""
