@@ -307,7 +307,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
     {% if use_include %}
     `include "{{ f|get_file_name }}";
     {% else %}
-    // Content of {{ f }}
+    // Content of {{ f|get_file_name }}
 
 {{ f|get_file_content }}
     {% endif %}
