@@ -62,7 +62,7 @@ class IntfPort:
         #     // This is used to have compatiblity between peakrdl-socgen using _i/o/io format
         #     // and tmrg appending blindly A/B/C to input/ouput TMR signals
         #     // Example: obi_reqA_i --> obi_req_iA
-        #     regex:'match_pattern::replace_pattern'
+        #     regex:"match_pattern::replace_pattern"
         # }
         for k in self.params._values:
             setattr(self, k, self.params._values[k])
