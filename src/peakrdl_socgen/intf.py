@@ -54,7 +54,15 @@ class IntfPort:
         #     DATA_WIDTH:32,
         #     prefix:"s_",
         #     modport:Modport::slave,
-        #     cap:false
+        #     cap:false,
+        #     // Regex property
+        #     // each \ character must be escaped twice to get "([ABC])_([io])$::_\2\1":
+        #     // 1. systemrdl compiler
+        #     // 2. eval call from peakrdl-socgen
+        #     // This is used to have compatiblity between peakrdl-socgen using _i/o/io format
+        #     // and tmrg appending blindly A/B/C to input/ouput TMR signals
+        #     // Example: obi_reqA_i --> obi_req_iA
+        #     regex:'match_pattern::replace_pattern'
         # }
         for k in self.params._values:
             setattr(self, k, self.params._values[k])

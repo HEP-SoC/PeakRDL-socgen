@@ -1,3 +1,5 @@
+import re
+
 from typing import TYPE_CHECKING
 from systemrdl.node import SignalNode
 
@@ -6,7 +8,7 @@ if TYPE_CHECKING:
 
 class Signal:
     """Wrapper around a SignalNode with extended properties for verilog module generation."""
-    def __init__(self, node: SignalNode, prefix: str = "", cap: bool = False):
+    def __init__(self, node: SignalNode, prefix: str = "", cap: bool = False, regex: str = ""):
 
         self.node = node
         # Prefix appended to the signal name?
@@ -14,6 +16,7 @@ class Signal:
         # Name of the node containing the signal
         self.basename = node.inst_name
         self.cap = cap
+        self.regex = regex
 
         self.width = node.width
         self.is_clk = self.isClk()
@@ -24,16 +27,27 @@ class Signal:
 
         self.output = node.get_property('output', default=False) != False
         self.input = node.get_property('input', default=False) != False
-        assert not (self.output==True and self.input) == True, f"Signal cannot be both input and output {self.name}"
-        
+        assert not (self.output and self.input) == True, f"Signal cannot be both input and output {self.name}"
+
         self.data_type = node.get_property('datatype', default='wire')
 
     @property
     def name(self):
         """Gets the signal instance name."""
+        signal_base_name = self.prefix + self.node.inst_name
+        # Apply regex if provided
+        if self.regex:
+            try:
+                match_pattern, replace_pattern = self.regex.split('::', 1)
+            except ValueError:
+                raise ValueError("Invalid format for regex argument. Use 'match_pattern::replace_pattern'.")
+            # Perform the regex replacement
+            signal_base_name = re.sub(match_pattern, replace_pattern, signal_base_name)
+        # Capitalize the name if cap is property is set
         if self.cap:
-            return self.prefix + self.node.inst_name.upper()
-        return self.prefix + self.node.inst_name
+            signal_base_name = signal_base_name.upper()
+
+        return signal_base_name
 
     @property
     def verilogDir(self):
@@ -73,13 +87,50 @@ class IntfSignal(Signal):
     def __init__(self, node: SignalNode, intf: 'IntfPort'):
 
         self.intf = intf
-        # Sse base class init method
-        super().__init__(node=node, prefix=intf.prefix, cap=intf.cap)
+        # Call base class init method
+        super().__init__(node=node, prefix=intf.prefix, cap=intf.cap, regex=intf.regex)
         # Get the signal interface specific properties
         self.ss =  node.get_property('ss', default=False)    != False
         self.miso = node.get_property('miso', default=False) != False
         self.mosi = node.get_property('mosi', default=False) != False
+        assert (self.miso or self.mosi) == True, f"Intf Signal {self.name} does not have mosi or miso property"
         self.bidir = self.miso and self.mosi
+
+    @property
+    def name(self):
+        """Gets the signal instance name."""
+        signal_base_name = self.prefix + self.node.inst_name
+
+        # Prepend the _i, _o, or _io suffix
+        if self.bidir:
+            signal_base_name += "_io"
+        elif self.mosi:
+            if self.intf.modport.name == "slave":
+                signal_base_name += "_i"
+            else:
+                signal_base_name += "_o"
+        elif self.miso:
+            if self.intf.modport.name == "master":
+                signal_base_name += "_i"
+            else:
+                signal_base_name += "_o"
+        else:
+            assert False, "Intf Signal does not have mosi or miso property"
+
+        # Apply regex if existing
+        if self.regex:
+            try:
+                match_pattern, replace_pattern = self.regex.split('::', 1)
+            except ValueError:
+                raise ValueError("Invalid format for regex argument. Use 'match_pattern::replace_pattern'.")
+            # Perform the regex replacement
+            result = re.sub(match_pattern, replace_pattern, signal_base_name)
+            signal_base_name = result
+
+        # Capitalize the name if cap is property is set
+        if self.cap:
+            signal_base_name = signal_base_name.upper()
+        return signal_base_name
 
     @property
     def verilogDir(self):
