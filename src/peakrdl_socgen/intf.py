@@ -56,9 +56,10 @@ class IntfPort:
         #     modport:Modport::slave,
         #     cap:false,
         #     // Regex property
-        #     // each \ character must be escaped twice to get "([ABC])_([io])$::_\2\1":
-        #     // 1. systemrdl compiler
-        #     // 2. eval call from peakrdl-socgen
+        #     // each \ character must be escaped twice to get "([ABC])_([io])$::_\2\1"
+        #     // applied by the regex python code:
+        #     // 1. systemrdl compiler removes the first escape \
+        #     // 2. eval call from peakrdl-socgen removes the second one
         #     // This is used to have compatiblity between peakrdl-socgen using _i/o/io format
         #     // and tmrg appending blindly A/B/C to input/ouput TMR signals
         #     // Example: obi_reqA_i --> obi_req_iA
