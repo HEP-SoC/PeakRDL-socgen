@@ -13,11 +13,14 @@ class AdaptersPath:
                  adapt_from : IntfPort,
                  adapt_to   : IntfPort,
                  rdlc       : RDLCompiler,
+                 intc_prefix: str="",
                  ):
 
         self.rdlc = rdlc
         self.adapt_from = adapt_from
         self.adapt_to = adapt_to
+
+        self.intc_prefix = intc_prefix
 
         self.adapters = self.createAdaptersOnPath()
 
@@ -111,7 +114,9 @@ class AdaptersPath:
 
         # Generate a unique instance name
         # TODO Change the generated name to something more clear (now it uses the first found slave by default for adapt_from)
-        inst_name = ad_type + "_" + adapt_from.module.node.get_path().replace(".", "_") + "2" + adapt_to.module.node.get_path().replace(".", "_")
+        inst_name = ad_type # + "_" + adapt_from.module.node.get_path().replace(".", "_") + "2" + adapt_to.module.node.get_path().replace(".", "_")
+        if self.intc_prefix:
+            inst_name += "_" + self.intc_prefix
         # Elaborate the interface SystemRDL compiler, overrides the adapter instance name,
         # and get the addrmap no handle by getting the root node child
         adapter_node = self.rdlc.elaborate(
@@ -231,3 +236,11 @@ class Adapter(Module):
                     orig_intf=self.end_intf,
                     ))
         return intfs
+
+    @property
+    def end_node_name(self):
+        # If another adapter has been added skip it until we reach the base module
+        if self.end_intf.module.node.get_property("adapter"):
+            return self.end_intf.module.end_node_name
+        else:
+            return self.end_intf.module.node.inst_name

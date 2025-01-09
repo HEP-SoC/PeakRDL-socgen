@@ -23,7 +23,8 @@ package soc_addr_map_pkg;
 
     {# GENERATE SLAVE MEMORY MAP ADDRESSES #}
     {%- for port in intc.ext_mst_ports %}
-      {% set port_prefix = (port.module.node.inst_name + "_" + inct_prefix).upper() %}
+      {# {% set port_prefix = port.module.node.inst_name + "_" + inct_prefix.upper() %} #}
+      {% set port_prefix = (port.get_module_name() + "_" + inct_prefix).upper() %}
       localparam logic [31:0] {{ port_prefix }}_START_ADDRESS = {{ inct_prefix }}_BASE_ADDRESS + 32'h{{ '%08x' % port.module.node.inst.addr_offset }};
       localparam logic [31:0] {{ port_prefix }}_SIZE          = 32'h{{ '%08x' % port.module.size }};
       localparam logic [31:0] {{ port_prefix }}_END_ADDRESS   = {{ port_prefix }}_START_ADDRESS + {{ port_prefix }}_SIZE;

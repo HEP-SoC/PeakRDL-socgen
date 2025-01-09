@@ -34,7 +34,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 {% for module in subsys.modules %}
     {# Define the signals used with internal connections #}
     {% for s in module.signals %}
-        {% set sig_name = module.node.inst_name + "_" + s.name %}
+        {% set sig_name = module.getSigVerilogName(s) %}
         {# If top module has a port with the same name don't create the signal#}
         {% if not subsys.hasSignal(sig_name) %}
     {{ s.data_type }}{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ sig_name }};
@@ -149,7 +149,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
         // {{ port.type }}
             {% set last_port = loop.last %}
             {% for s in port.signals %}
-        .{{ s.name }}({{ module.getSigVerilogName(s) }}){% if not (loop.last and last_port) %},{% endif %}
+        .{{ s.name_port }}({{ module.getSigVerilogName(s) }}){% if not (loop.last and last_port) %},{% endif %}
 
             {% endfor %}
         {% endfor %}
@@ -168,7 +168,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
         .{{ param['name'] }}({{ param['value'] }}){% if not loop.last %},{% endif %}
 
         {% endfor %}
-    ) {% endif %} {{ intc.node.inst_name }} (
+    ) {% endif %} {{ intc.node.inst_name }}_i (
     {% for s in intc.signals %}
         .{{ s.name }}({{ intc.getSigVerilogName(s) }}),
     {% endfor %}
@@ -176,7 +176,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
     {% for intf in [intc.getMasterPorts()[0], intc.getSlavePorts()[0]] %}
         {% set intf_last = loop.last %}
         {% for s in intf.signals %}
-        .{{ s.name }}({{ intf.module.node.inst_name }}_{{ s.name }}){% if not (loop.last and intf_last) %},{% endif %}
+        .{{ s.name_port }}({{ intf.module.node.inst_name }}_{{ s.name }}){% if not (loop.last and intf_last) %},{% endif %}
 
         {% endfor %}
 

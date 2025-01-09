@@ -4,6 +4,7 @@ from systemrdl.core.parameter import Parameter
 from typing import List
 import math
 import logging
+import re
 
 from systemrdl.rdltypes.array import ArrayedType
 
@@ -31,7 +32,7 @@ class Module:
 
         self.hdl_params = self._getHdlParameters()
 
-        self.signals = self.getSignals()
+        self.port_signals, self.internal_signals = self.getSignals()
 
     @property
     def isOnlyMaster(self) -> bool:
@@ -58,15 +59,18 @@ class Module:
             return self.node.inst_name
 
     def getSignals(self):
-        signals =[]
+        port_signals = []
+        internal_signals = []
         for s in self.node.signals():
-            if s.get_property("input") or s.get_property("output"):
-                signals.append(Signal(s))
-        return signals
+            if s.get_property("input") or s.get_property("output") or s.get_property("inout"):
+                port_signals.append(Signal(s))
+            else:
+                internal_signals.append(Signal(s))
+        return port_signals, internal_signals
 
     def hasSignal(self, sig_name) -> bool:
         """Returns True if the module has a signal matching the given one."""
-        for s in self.signals:
+        for s in self.port_signals:
             if s.name == sig_name:
                 return True
         # Skip warning for clock and reset as they are instantiated separately
@@ -77,7 +81,7 @@ class Module:
 
     def getClks(self) -> Signal:
         """Returns a list of clock Signal object handles."""
-        clks = [clk for clk in self.signals if clk.isClk()]
+        clks = [clk for clk in self.port_signals if clk.isClk()]
         if len(clks) > 0:
             return clks
         else:
@@ -86,7 +90,7 @@ class Module:
 
     def getRsts(self):
         """Returns a list of reset Signal object handles."""
-        rsts = [rst for rst in self.signals if rst.isRst()]
+        rsts = [rst for rst in self.port_signals if rst.isRst()]
         if len(rsts) > 0:
             return rsts
         else:
@@ -143,7 +147,16 @@ class Module:
 
     def getSigVerilogName(self, s: Signal) -> str:
         """Returns the module/node instance name appended with the signal instance name."""
-        return self.node.inst_name + "_" + s.name
+        # Used for internal connection within a module, remove any port-specific suffix for better readability
+        signal_name = s.name
+        # # Regex pattern
+        # match_pattern = r"_(ni|nio|i|o|io|no)([A|B|C|])$"
+        # replace_pattern = r"\2"
+        # if re.search(match_pattern, signal_name):
+        #     # Perform the regex replacement
+        #     signal_name = re.sub(match_pattern, replace_pattern, signal_name)
+
+        return self.node.inst_name + "_" + signal_name
 
     def create_ports(self) -> List[IntfPort]:
         """Get the module declared interfaces and create an IntfPort object for each of them.

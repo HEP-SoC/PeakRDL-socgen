@@ -131,6 +131,14 @@ class IntfPort:
 
         return intf_type_str[:-2] + "}" # Delete last comma
 
+    def get_module_name(self):
+        """Returns the base module name containing the port interface"""
+        # If an adapter has been added skip it until we reach the base module
+        if self.module.node.get_property("adapter"):
+            return self.module.end_node_name
+        else:
+            return self.module.node.inst_name
+
     @staticmethod
     def create_intf_port(rdlc: RDLCompiler, module: 'Module', intf_struct) -> List['IntfPort']:
         """Generate IntfPort object(s) for the given interface structure."""

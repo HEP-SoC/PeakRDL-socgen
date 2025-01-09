@@ -259,6 +259,7 @@ class Subsystem(Module): # TODO is module and subsystem the same?
                     adapt_from=slv_ports[0], # For now all slaves are identical
                     adapt_to=p,
                     rdlc=self.rdlc,
+                    intc_prefix=inst_prefix
                     )
                   )
 

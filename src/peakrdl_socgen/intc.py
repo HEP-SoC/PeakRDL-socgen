@@ -35,7 +35,7 @@ class Intc(Module):
         self.type_name = ext_slv_ports[0].type.replace("_intf_node", "_interconnect")
 
         # Instance name using prefix + base name
-        self.inst_name = self.inst_prefix + self.type_name + "_i"
+        self.inst_name = self.inst_prefix + self.type_name
 
         all_ports = [*self.ext_slv_ports, *self.ext_mst_ports]
         same_intf = all(x.type == all_ports[0].type for x in all_ports)

@@ -15,7 +15,6 @@ class Signal:
         self.prefix = prefix
         # Name of the node containing the signal
         self.basename = node.inst_name
-        self.cap = cap
         self.regex = regex
 
         self.width = node.width
@@ -24,6 +23,7 @@ class Signal:
 
         self.activelow = node.get_property('activelow', default=False) != False
         self.activehigh = node.get_property('activehigh', default=False) != False
+        assert not (self.activelow and self.activehigh) == True, f"Signal cannot be both activelow and activehigh {self.name}"
 
         self.output = node.get_property('output', default=False) != False
         self.input = node.get_property('input', default=False) != False
@@ -35,7 +35,8 @@ class Signal:
     def name(self):
         """Gets the signal instance name."""
         signal_base_name = self.prefix + self.node.inst_name
-        # Apply regex if provided
+
+        # Apply regex if existing
         if self.regex:
             try:
                 match_pattern, replace_pattern = self.regex.split('::', 1)
@@ -43,9 +44,6 @@ class Signal:
                 raise ValueError("Invalid format for regex argument. Use 'match_pattern::replace_pattern'.")
             # Perform the regex replacement
             signal_base_name = re.sub(match_pattern, replace_pattern, signal_base_name)
-        # Capitalize the name if cap is property is set
-        if self.cap:
-            signal_base_name = signal_base_name.upper()
 
         return signal_base_name
 
@@ -70,7 +68,7 @@ class Signal:
 
     def isRst(self):
         """Returns True if signal type is defined as rst."""
-        if self.node.get_property("reset_signal") is not None:
+        if self.node.get_property("async_reset") is not None or self.node.get_property("sync_reset") is not None:
             return True
         else:
             return False
@@ -80,7 +78,7 @@ class Signal:
         print(self.__str__)
 
     def __str__(self) -> str:
-        return f"Signal: {self.name} Width: {self.width} Cap: {self.cap} Active low/high: {self.activelow}/{self.activehigh}"
+        return f"Signal: {self.name} Width: {self.width} Active low/high: {self.activelow}/{self.activehigh}"
 
 class IntfSignal(Signal):
     """Extension of the base Signal class for interface signals."""
@@ -97,23 +95,29 @@ class IntfSignal(Signal):
         self.bidir = self.miso and self.mosi
 
     @property
-    def name(self):
-        """Gets the signal instance name."""
+    def name_port(self):
+        """Gets the signal instance name for port definition."""
         signal_base_name = self.prefix + self.node.inst_name
 
-        # Prepend the _i, _o, or _io suffix
+        # Add the _(n)i, _(n)o, or _(n)io suffix for interface ports
+        # n for active low signals
+        if self.activelow:
+            signal_base_name += "_n"
+        else:
+            signal_base_name += "_"
+        # i, o, io for input, output, and inout, respectively
         if self.bidir:
-            signal_base_name += "_io"
+            signal_base_name += "io"
         elif self.mosi:
             if self.intf.modport.name == "slave":
-                signal_base_name += "_i"
+                signal_base_name += "i"
             else:
-                signal_base_name += "_o"
+                signal_base_name += "o"
         elif self.miso:
             if self.intf.modport.name == "master":
-                signal_base_name += "_i"
+                signal_base_name += "i"
             else:
-                signal_base_name += "_o"
+                signal_base_name += "o"
         else:
             assert False, "Intf Signal does not have mosi or miso property"
 
@@ -122,14 +126,11 @@ class IntfSignal(Signal):
             try:
                 match_pattern, replace_pattern = self.regex.split('::', 1)
             except ValueError:
-                raise ValueError("Invalid format for regex argument. Use 'match_pattern::replace_pattern'.")
+                raise ValueError(f"Invalid format for regex argument: {self.regex}. Use 'match_pattern::replace_pattern'.")
             # Perform the regex replacement
-            result = re.sub(match_pattern, replace_pattern, signal_base_name)
-            signal_base_name = result
+            signal_base_name = re.sub(match_pattern, replace_pattern, signal_base_name)
 
-        # Capitalize the name if cap is property is set
-        if self.cap:
-            signal_base_name = signal_base_name.upper()
+        # print(f'name_port - signal_base_name: {signal_base_name}')
         return signal_base_name
 
     @property
@@ -155,4 +156,4 @@ class IntfSignal(Signal):
         return self.mosi and not self.miso
 
     def __str__(self) -> str:
-        return f"Signal: {self.name} Width: {self.width} SS: {self.ss} MOSI: {self.mosi} MISO: {self.miso} Cap: {self.cap} Active low/high: {self.activelow}/{self.activehigh}"
+        return f"Signal: {self.name} Width: {self.width} SS: {self.ss} MOSI: {self.mosi} MISO: {self.miso} Active low/high: {self.activelow}/{self.activehigh}"
