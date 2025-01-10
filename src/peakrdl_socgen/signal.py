@@ -27,7 +27,10 @@ class Signal:
 
         self.output = node.get_property('output', default=False) != False
         self.input = node.get_property('input', default=False) != False
+        self.inout = node.get_property('inout', default=False) != False
         assert not (self.output and self.input) == True, f"Signal cannot be both input and output {self.name}"
+        assert not (self.output and self.inout) == True, f"Signal cannot be both output and inout {self.name}"
+        assert not (self.input and self.inout) == True, f"Signal cannot be both input and inout {self.name}"
 
         self.data_type = node.get_property('datatype', default='wire')
 
@@ -54,7 +57,9 @@ class Signal:
             return f"input  {self.data_type}"
         elif self.output:
             return f"output {self.data_type}"
-        elif self.is_clk or self.is_rst:
+        elif self.inout:
+            return f"inout  {self.data_type}"
+        elif self.is_clk or self.is_rst: # Is this really needed?
             return f"input  {self.data_type}"
 
         assert False, f"Signal does not have input or output"
@@ -68,7 +73,7 @@ class Signal:
 
     def isRst(self):
         """Returns True if signal type is defined as rst."""
-        if self.node.get_property("async_reset") is not None or self.node.get_property("sync_reset") is not None:
+        if self.node.get_property("reset_signal") is not None:
             return True
         else:
             return False

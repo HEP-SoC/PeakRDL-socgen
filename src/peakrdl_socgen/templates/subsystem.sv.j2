@@ -6,7 +6,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 {% endfor %}
 ){% endif %}(
 {# Add the explicitely named signals #}
-{% for s in subsys.signals %}
+{% for s in subsys.port_signals %}
     {{ s.verilogDir }}{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ s.name }}{% if (not loop.last) or (subsys.ports|length > 0) %},{% endif %}
 
 {% endfor %}
@@ -17,7 +17,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
     // Bus: {{ intf.prefix }}{{ intf.type }}
     {% for s in intf.signals %}
     {% set last_sig = loop.last %}
-    {{ s.verilogDir }}{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ s.name }}{% if not (last_sig and last_bus) %},{% endif %}
+    {{ s.verilogDir }}{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ s.name_port }}{% if not (last_sig and last_bus) %},{% endif %}
 
     {% endfor %}
 {% endfor %}
@@ -27,21 +27,31 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
   import soc_addr_map_pkg::*;
 
 /*========================================================================================
-*========================= Modules signals ===============================================
+*============================ Internal signals ===========================================
+*========================================================================================*/
+
+{% for s in subsys.internal_signals %}
+    {{ s.data_type }}{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ s.name }};
+{% endfor %}
+
+/*========================================================================================
+*========================= Submodules signals ===========================================
 *========================================================================================*/
 
 {# Define all the signal first #}
 {% for module in subsys.modules %}
-    {# Define the signals used with internal connections #}
-    {% for s in module.signals %}
-        {% set sig_name = module.getSigVerilogName(s) %}
+    {# Define the subsystem port signals (input, output, inout) #}
+    // Sub-modules {{ module.node.inst_name }} signals
+    // Explicit port signal
+    {% for s in module.port_signals %}
         {# If top module has a port with the same name don't create the signal#}
-        {% if not subsys.hasSignal(sig_name) %}
-    {{ s.data_type }}{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ sig_name }};
+        {% if not subsys.hasConnection(module, s) %}
+    {{ s.data_type }}{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ module.getSigVerilogName(s) }};
         {% endif %}
     {% endfor %}
 
-    {# Define the port/interface signals used to connect the top module with its inner modules #}
+    {# Define the port/interface signals of interconnects #}
+    // Interface port signal
     {% for port in module.ports %}
         {% for s in port.signals %}
     wire{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ module.node.inst_name }}_{{ s.name }}; // {{ module.node.inst_name }}  {{ port.type }}
@@ -57,7 +67,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 {% for intc in subsys.intcs %}
     {% for s in intc.signals %}
         {% set sig_name = intc.node.inst_name + "_" + s.name %}
-        {% if not subsys.hasSignal(sig_name) %}
+        {% if not subsys.hasConnection(intc, s) %}
     wire{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ sig_name }};
         {% endif %}
     {% endfor %}
@@ -87,8 +97,8 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 {% for apath in subsys.adapter_paths %}
     {% for adapter in apath.adapters %}
         {% for s in adapter.signals %}
-            {% set sig_name = adapter.node.inst_name + "_" + s.name %}
-            {% if not subsys.hasSignal(sig_name) %}
+            {% set sig_name = adapter.node.inst_name + "_" + adapter.end_node_name + "_" + s.name %}
+            {% if not subsys.hasConnection(adapter, s) %}
     wire{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ sig_name }};
             {% endif %}
         {% endfor %}
@@ -101,15 +111,15 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
             {% set prev_adapter = apath.adapters[adapter_idx-2] %}
             {% set prev_mst_port = prev_adapter.mst_port %}
         {% endif %}
-    // Adapter: {{ adapter.node.inst_name }}
+    // Adapter: {{ adapter.node.inst_name + "_" + adapter.end_node_name }}
         {% if loop.first %}
             {% for s in adapter.slv_port.signals %}
-    wire [{{ s.width - 1}}:0] {{ adapter.node.inst_name }}_{{ s.name }};
+    wire [{{ s.width - 1}}:0] {{ adapter.node.inst_name }}_{{adapter.end_node_name}}_{{ s.name }};
             {% endfor %}
         {% endif %}
 
         {% for s in adapter.mst_port.signals %}
-    wire [{{ s.width - 1}}:0] {{ adapter.node.inst_name }}_{{ s.name }};
+    wire [{{ s.width - 1}}:0] {{ adapter.node.inst_name }}_{{adapter.end_node_name}}_{{ s.name }};
         {% endfor %}
     {% endfor %}
 {% endfor %}
@@ -119,7 +129,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 *===================== Modules instantiation =============================================
 *========================================================================================*/
 {# Instantiate the child modules and subsystems (i.e., modules that are generated) clock(s) and reset(s) #}
-{% for module in subsys.getAllModules() %}
+{# {% for module in subsys.getAllModules() %}
 {% for s in module.signals %}
 {% if s.is_clk %}
     assign {{ module.getSigVerilogName(s) }} = {{ subsys.getMatchingClk(module, s).name }};
@@ -130,7 +140,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 {% endif %}
 {% endfor %}
 
-{% endfor %}
+{% endfor %} #}
 
 {# Instantiate the child modules and subsystems (i.e., modules that are generated) #}
 {% for module in subsys.modules %}
@@ -141,8 +151,14 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 
         {% endfor %}
     ) {% endif %}{{ module.node.inst_name }}_i (
-        {% for s in module.signals %}
-        .{{ s.name }}({{ module.getSigVerilogName(s) }}){% if (not loop.last) or (module.ports|length > 0) %},{% endif %}
+        // Explicit port signals
+        {% for s in module.port_signals %}
+            {% if not subsys.hasConnection(module, s) %}
+                {% set sig_name = module.getSigVerilogName(s) %}
+            {% else %}
+                {% set sig_name = subsys.getMatchingSignal(module, s).name %}
+            {% endif %}
+        .{{ s.name }}({{ sig_name }}){% if (not loop.last) or (module.ports|length > 0) %},{% endif %}
 
         {% endfor %}
         {% for port in module.ports %}
@@ -197,10 +213,15 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
         {% for s in intf.signals %}
             {% set sig_idx = intf_idx %}
             {% set intc_sig = intc_slv_port.findSignal(s) %}
+            {% if intf.module.node == subsys.node %}
+                {% set intf_sig_name = s.name_port %}
+            {% else %}
+                {% set intf_sig_name = s.name %}
+            {% endif %}
             {% if s.mosi %}
-    assign {{ intc.node.inst_name }}_{{ intc_sig.name }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] = {{ mod_prefix }}{{ s.name }};
+    assign {{ intc.node.inst_name }}_{{ intc_sig.name }}[{{ sig_idx  *  s.width }} +: {{ s.width }}] = {{ mod_prefix }}{{ intf_sig_name }};
             {% elif s.miso %}
-    assign {{ mod_prefix }}{{ s.name }} = {{ intc.node.inst_name }}_{{ intc_sig.name }}[{{ sig_idx  *  s.width }} +: {{ s.width }}];
+    assign {{ mod_prefix }}{{ intf_sig_name }} = {{ intc.node.inst_name }}_{{ intc_sig.name }}[{{ sig_idx  *  s.width }} +: {{ s.width }}];
             {% endif %}
         {% endfor %}
 
@@ -211,8 +232,10 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
         {% set intf_idx = loop.index-1 %}
         {% if intf.module.node == subsys.node %}
             {% set mod_prefix = "" %}
+        {% elif intf.module.node.get_property("adapter") %}
+            {% set mod_prefix = intf.module.node.inst_name + "_" + intf.get_module_name() + "_" %}
         {% else %}
-            {% set mod_prefix = intf.module.node.inst_name + "_" %}
+            {% set mod_prefix = intf.get_module_name() + "_" %}
         {% endif %}
         {% for s in intf.signals %}
             {% set sig_idx = (not s.isShared())|int * intf_idx %}
@@ -243,14 +266,14 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
             {% set prev_adapter = apath.adapters[adapter_idx-2] %}
             {% set prev_mst_port = prev_adapter.mst_port %}
         {% endif %}
-    // Instantiate Adapter: {{ adapter.node.inst_name }}
+    // Instantiate Adapter: {{ adapter.node.inst_name }}_{{ adapter.end_node_name }}
 
     {{ adapter.getOrigTypeName() }} {% if adapter.hdl_params|length > 0 %}#(
         {% for param in adapter.hdl_params %}
             .{{ param['name'] }}({{ param['value'] }}){% if not loop.last %},{% endif %}
 
         {% endfor %}
-        ) {% endif %}{{ adapter.node.inst_name }} (
+        ) {% endif %}{{ adapter.node.inst_name }}_{{ adapter.end_node_name }} (
         {% for s in adapter.signals %}
             .{{ s.name }}({{ adapter.getSigVerilogName(s) }}){% if (not loop.last) or (adapter.intfs|length > 0) %},{% endif %}
 
@@ -258,11 +281,11 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 
         {% set slv_intf = apath.intfChain[adapter_idx-1] %}
         {% for s in slv_intf.signals %}
-        .{{ adapter.slv_port.findSignal(s).name }}({{ prev_adapter.node.inst_name }}_{{ prev_mst_port.findSignal(s).name }}),
+        .{{ adapter.slv_port.findSignal(s).name_port }}({{ prev_adapter.node.inst_name }}_{{ prev_adapter.end_node_name }}_{{ prev_mst_port.findSignal(s).name }}),
         {% endfor %}
 
         {% for s in apath.intfChain[adapter_idx].signals %}
-        .{{ adapter.mst_port.findSignal(s).name }}({{ adapter.node.inst_name}}_{{ adapter.mst_port.findSignal(s).name }}){% if not loop.last %},{% endif %}
+        .{{ adapter.mst_port.findSignal(s).name_port }}({{ adapter.node.inst_name}}_{{ adapter.end_node_name }}_{{ adapter.mst_port.findSignal(s).name }}){% if not loop.last %},{% endif %}
 
         {% endfor %}
 
@@ -272,9 +295,9 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
         {% for s in apath.adapt_to.signals %}
             {% set adapter_sig = adapter.mst_port.findSignal(s) %}
             {% if s.mosi %}
-    assign {{ apath.adapt_to.module.node.inst_name }}_{{ s.name }} = {{ adapter.node.inst_name }}_{{ adapter_sig.name }};
+    assign {{ apath.adapt_to.module.node.inst_name }}_{{ s.name }} = {{ adapter.node.inst_name }}_{{ adapter.end_node_name }}_{{ adapter_sig.name }};
             {% elif s.miso %}
-    assign {{ adapter.node.inst_name }}_{{ adapter_sig.name }} = {{ apath.adapt_to.module.node.inst_name }}_{{ s.name }};
+    assign {{ adapter.node.inst_name }}_{{ adapter.end_node_name }}_{{ adapter_sig.name }} = {{ apath.adapt_to.module.node.inst_name }}_{{ s.name }};
             {% endif %}
         {% endfor %}
 

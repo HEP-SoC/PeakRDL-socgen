@@ -21,6 +21,9 @@ ch.setFormatter(formatter)
 # add the handlers to the logger
 module_logger.addHandler(ch)
 
+# Set for more verbosity
+module_logger.setLevel(logging.INFO)
+
 class Module:
     def __init__(self, node: AddrmapNode, rdlc: RDLCompiler):
         """Each module is a wrapper around an AddrmapNode and contains an RDLCompiler
@@ -64,15 +67,35 @@ class Module:
         for s in self.node.signals():
             if s.get_property("input") or s.get_property("output") or s.get_property("inout"):
                 port_signals.append(Signal(s))
+                module_logger.debug(f"Module - getSignals: added signal {port_signals[-1].name} to port_signals of module {self.node.inst_name}")
             else:
                 internal_signals.append(Signal(s))
+                module_logger.debug(f"Module - getSignals: added signal {internal_signals[-1].name} to internal_signals of module {self.node.inst_name}")
         return port_signals, internal_signals
 
     def hasSignal(self, sig_name) -> bool:
         """Returns True if the module has a signal matching the given one."""
+        module_logger.debug(f"Module - hasSignal: {self.node.inst_name} has {sig_name}?")
+        # Check explicit port signals
         for s in self.port_signals:
             if s.name == sig_name:
+                module_logger.debug(f"Yes (explicit port signal)")
                 return True
+        # Check internal signals
+        for s in self.internal_signals:
+            module_logger.debug(f"Module - hasSignal: checking internal signal {s.name}")
+            # Keep only the ultimate path name
+            to_path = s.node.get_property("to", default="").split('.')[-1]
+            from_path = s.node.get_property("from", default="").split('.')[-1]
+            # Regex pattern to check if signal name is present or not in the module
+            # The signal is check independently of the standard port naming conventions
+            regex_pattern = rf"^{re.escape(sig_name)}(_(ni|nio|i|o|io|no))?$"
+            if re.fullmatch(regex_pattern, to_path) or re.fullmatch(regex_pattern, from_path):
+                module_logger.debug(f"Yes (internal signal)")
+                return True
+
+        module_logger.debug(f"No")
+        return False
         # Skip warning for clock and reset as they are instantiated separately
         # # We only have the signal name so to a simple filtering
         # if 'clk' not in sig_name and 'rst' not in sig_name:
@@ -149,12 +172,15 @@ class Module:
         """Returns the module/node instance name appended with the signal instance name."""
         # Used for internal connection within a module, remove any port-specific suffix for better readability
         signal_name = s.name
-        # # Regex pattern
-        # match_pattern = r"_(ni|nio|i|o|io|no)([A|B|C|])$"
-        # replace_pattern = r"\2"
-        # if re.search(match_pattern, signal_name):
-        #     # Perform the regex replacement
-        #     signal_name = re.sub(match_pattern, replace_pattern, signal_name)
+        module_logger.debug(f"Module {self.node.inst_name} - getSigVerilogName for signal {signal_name}")
+        # This function is called only for internal signals, so remove any standard suffix
+        # Regex pattern
+        match_pattern = r"_(ni|nio|i|o|io|no)([A|B|C]?)$"
+        replace_pattern = r"\2"
+        if re.search(match_pattern, signal_name):
+            # Perform the regex replacement
+            signal_name = re.sub(match_pattern, replace_pattern, signal_name)
+            module_logger.debug(f"Module {self.node.inst_name} - getSigVerilogName: regex found and replaced: {signal_name}")
 
         return self.node.inst_name + "_" + signal_name
 

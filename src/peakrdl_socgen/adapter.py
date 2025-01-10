@@ -1,9 +1,12 @@
 from typing import List, Optional
+
 from systemrdl import RDLCompiler
 from systemrdl.node import AddrmapNode
 from systemrdl.rdltypes import UserStruct
+
 from .module import Module
 from .intf import IntfPort
+from .signal import Signal
 
 class AdaptersPath:
     """This class is used to find the adapter path from one to another
@@ -208,6 +211,11 @@ class Adapter(Module):
             self.addr_map_size = addr_map_size
 
         super().__init__(self.node, self.rdlc) # type: ignore
+
+    # Overloading base class Module function
+    def getSigVerilogName(self, s: Signal) -> str:
+        """Returns the module/node instance name appended with the end node and signal instance name."""
+        return self.node.inst_name + "_" + self.end_node_name + "_" + s.name
 
     @property
     def size(self) -> int:

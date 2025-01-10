@@ -124,7 +124,7 @@ class Intc(Module):
                         params['SLAVE_MASK'].append(mask)
 
             elif p.name == "SOCGEN_XBAR_ADDR_RULES":# and isinstance(p.param_type, str): # TODO why not working
-                sv_intc_prefix = self.inst_name.replace("interconnect_i", "intc").upper() + "_ADDR_RULES"
+                sv_intc_prefix = self.inst_name.replace("interconnect", "intc").upper() + "_ADDR_RULES"
                 params['SOCGEN_XBAR_ADDR_RULES'] = sv_intc_prefix
 
         return params

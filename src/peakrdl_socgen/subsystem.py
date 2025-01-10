@@ -2,6 +2,7 @@ from systemrdl import RDLCompiler, RDLListener
 from systemrdl.node import AddrmapNode
 from typing import List
 import logging
+import re
 
 from .signal import Signal
 from .module import Module
@@ -213,6 +214,70 @@ class Subsystem(Module): # TODO is module and subsystem the same?
             else:
                 subsys_logger.warning(f'No matching reset found, using the first as default. Connecting reset: {self.getOrigTypeName()}.{subsys_rsts[0].name} to: {m.getOrigTypeName()}.{s.name}')
                 return subsys_rsts[0]
+
+    def getMatchingSignal(self, submodule: Module, submodule_signal: Signal) -> Signal:
+        subsys_logger.debug(f"Subsystem {self.node.inst_name} - getMatchingSignal: {self.node.inst_name} has {submodule_signal.name}?")
+        # Check explicit port signals
+        for s in self.port_signals:
+            # explicit port signal contains the 'path' property to give the connection path from/to it
+            path = s.node.get_property("path", default="")
+            if submodule_signal.name == s.name or path == f"{submodule.node.inst_name}.{submodule_signal.name}":
+                subsys_logger.debug(f"Yes (explicit port signal)")
+                return s
+
+        # Create signal full path to check
+        submodule_path = f"{submodule.node.inst_name}.{submodule_signal.name}"
+        # Regex pattern to check if signal name is present or not in the submodule
+        # The signal is check independently of the standard port naming conventions
+        regex_pattern = rf"^{re.escape(submodule_path)}"
+
+        # Check internal signals
+        for s in self.internal_signals:
+            subsys_logger.debug(f"Subsystem - getMatchingSignal: checking internal signal {s.name}")
+            # Check the full path name
+            to_path = s.node.get_property("to", default="")
+            from_path = s.node.get_property("from", default="")
+            subsys_logger.debug(f"Subsystem - getMatchingSignal: internal signal to_path: {to_path}")
+            subsys_logger.debug(f"Subsystem - getMatchingSignal: internal signal from_path: {from_path}")
+            # Check the full to/from paths
+            if re.fullmatch(regex_pattern, to_path):
+                subsys_logger.debug(f"Yes (internal to_path signal)")
+                return s
+            elif re.fullmatch(regex_pattern, from_path):
+                subsys_logger.debug(f"Yes (internal from_path signal)")
+                return s
+
+        assert False, f"The subsystem submodule {submodule.node.inst_name} does not contain the signal {submodule_signal.name}"
+
+    def hasConnection(self, submodule: Module, submodule_signal: Signal) -> bool:
+        """Returns True if the module has a signal matching the given one."""
+        subsys_logger.debug(f"Subsystem {self.node.inst_name}/{submodule.node.inst_name} - hasConnection: {self.node.inst_name} has {submodule_signal.name} connected to a module?")
+        # Check explicit port signals
+        for s in self.port_signals:
+            # explicit port signal contains the 'path' property to give the connection path from/to it
+            path = s.node.get_property("path", default="")
+            if submodule_signal.name == s.name or path == f"{submodule.node.inst_name}.{submodule_signal.name}":
+                subsys_logger.debug(f"Yes (explicit port signal)")
+                return True
+
+        # Create signal full path to check
+        submodule_path = f"{submodule.node.inst_name}.{submodule_signal.name}"
+        # Regex pattern to check if signal name is present or not in the submodule
+        # The signal is check independently of the standard port naming conventions
+        regex_pattern = rf"^{re.escape(submodule_path)}(_(ni|nio|i|o|io|no))?$"
+
+        # Check internal signals
+        for s in self.internal_signals:
+            subsys_logger.debug(f"Subsystem - hasConnection: checking internal signal {s.name}")
+            # Keep only the ultimate path name
+            to_path = s.node.get_property("to", default="") #.split('.')[-1]
+            from_path = s.node.get_property("from", default="") #.split('.')[-1]
+            if re.fullmatch(regex_pattern, to_path) or re.fullmatch(regex_pattern, from_path):
+                subsys_logger.debug(f"Yes (internal signal)")
+                return True
+
+        subsys_logger.debug(f"No")
+        return False
 
     def getEndpoints(self) -> List[IntfPort]:
         """Returns a list of children module/subsystem slave ports and subsystem master ports."""
