@@ -67,10 +67,10 @@ class Module:
         for s in self.node.signals():
             if s.get_property("input") or s.get_property("output") or s.get_property("inout"):
                 port_signals.append(Signal(s))
-                module_logger.debug(f"Module - getSignals: added signal {port_signals[-1].name} to port_signals of module {self.node.inst_name}")
+                module_logger.debug(f"Module {self.node.inst_name} - getSignals: added signal {port_signals[-1].name} to port_signals of module {self.node.inst_name}")
             else:
                 internal_signals.append(Signal(s))
-                module_logger.debug(f"Module - getSignals: added signal {internal_signals[-1].name} to internal_signals of module {self.node.inst_name}")
+                module_logger.debug(f"Module {self.node.inst_name} - getSignals: added signal {internal_signals[-1].name} to internal_signals of module {self.node.inst_name}")
         return port_signals, internal_signals
 
     def hasSignal(self, sig_name) -> bool:

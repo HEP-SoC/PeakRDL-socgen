@@ -1,4 +1,5 @@
 from typing import List, Optional
+import re
 
 from systemrdl import RDLCompiler
 from systemrdl.node import AddrmapNode
@@ -215,7 +216,16 @@ class Adapter(Module):
     # Overloading base class Module function
     def getSigVerilogName(self, s: Signal) -> str:
         """Returns the module/node instance name appended with the end node and signal instance name."""
-        return self.node.inst_name + "_" + self.end_node_name + "_" + s.name
+        # Used for internal connection within a module, remove any port-specific suffix for better readability
+        signal_name = s.name
+        # This function is called only for internal signals, so remove any standard suffix
+        # Regex pattern
+        match_pattern = r"_(ni|nio|i|o|io|no)([A|B|C]?)$"
+        replace_pattern = r"\2"
+        if re.search(match_pattern, signal_name):
+            # Perform the regex replacement
+            signal_name = re.sub(match_pattern, replace_pattern, signal_name)
+        return self.node.inst_name + "_" + self.end_node_name + "_" + signal_name
 
     @property
     def size(self) -> int:
