@@ -101,7 +101,7 @@ class IntfSignal(Signal):
 
     @property
     def name_port(self):
-        """Gets the signal instance name for port definition."""
+        """Gets the signal instance name for port definition with standard suffix added."""
         signal_base_name = self.prefix + self.node.inst_name
 
         # Add the _(n)i, _(n)o, or _(n)io suffix for interface ports
@@ -125,6 +125,12 @@ class IntfSignal(Signal):
                 signal_base_name += "o"
         else:
             assert False, "Intf Signal does not have mosi or miso property"
+
+        # If it is a tmr signal it will have the format, e.g., paddrA_i
+        # To create signal with same format than tmrg change it to, e.g., paddr_iA
+        tmr_match_pattern = r"([ABC])_(n?[io])$"
+        tmr_replace_pattern = r"_\2\1"
+        signal_base_name = re.sub(tmr_match_pattern, tmr_replace_pattern, signal_base_name)
 
         # Apply regex if existing
         if self.regex:

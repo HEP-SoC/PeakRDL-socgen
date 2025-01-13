@@ -55,7 +55,6 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
         {% for s in port.signals %}
     wire{% if s.width > 1 %} [{{ s.width -1 }}:0]{% endif %} {{ module.node.inst_name }}_{{ s.name }}; // {{ module.node.inst_name }}  {{ port.type }}
         {% endfor %}
-
     {% endfor %}
 {% endfor %}
 
