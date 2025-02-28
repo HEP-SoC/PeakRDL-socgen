@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (c) 2025 CERN
+#
+# Please retain this header in all redistributions and modifications of the code.
+
 from systemrdl import RDLCompiler
 from systemrdl.node import AddrmapNode
 from systemrdl.core.parameter import Parameter

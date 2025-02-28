@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (c) 2025 CERN
+#
+# Please retain this header in all redistributions and modifications of the code.
+
 option(UPDATE_PYTHON_DEPS "Force update dependencies" OFF)
 option(DEPS_USE_VENV "Create a Python virtual environment and install dependencies locally" ON)
 option(UPDATE_DEPS "Update all of the dependencies, CPM packages and Python" OFF)

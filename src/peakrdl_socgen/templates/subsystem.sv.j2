@@ -1,3 +1,8 @@
+{# SPDX-License-Identifier: GPL-3.0-only                                           #}
+{# Copyright (c) 2025 CERN                                                         #}
+{#                                                                                 #}
+{# Please retain this header in all redistributions and modifications of the code. #}
+
 {# Instantiate the subsystem top module with its parameters and input/ouput signals #}
 module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 {% for param in subsys.hdl_params %}

@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (c) 2025 CERN
+#
+# Please retain this header in all redistributions and modifications of the code.
+
 set(CPM_DOWNLOAD_VERSION 0.38.1)
 include(${CMAKE_CURRENT_LIST_DIR}/CPM.cmake)
 
