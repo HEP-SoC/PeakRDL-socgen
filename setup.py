@@ -19,9 +19,7 @@ setuptools.setup(
     long_description=long_description,
     url="https://github.com/HEP-SoC/PeakRDL-socgen",
     package_dir={'': 'src'},
-    packages=[
-        'peakrdl_socgen',
-    ],
+    packages=['peakrdl_socgen'],
     package_data={'peakrdl_socgen' : ['templates/*']},
     include_package_data=True,
     install_requires=[

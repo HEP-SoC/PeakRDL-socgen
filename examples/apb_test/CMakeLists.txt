@@ -24,6 +24,6 @@ ip_sources(${IP} SYSTEMRDL
 ip_link(${IP}
     cern::socgen::base
     cern::socgen::apb
-    )
+)
 
 peakrdl_socgen(${PROJECT_NAME})
