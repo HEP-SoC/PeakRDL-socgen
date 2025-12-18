@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2025 CERN
+//
+// Please retain this header in all redistributions and modifications of the code.
+
 addrmap apb_slave #(
     apb_intf INTF = apb_intf'{ADDR_WIDTH:32, DATA_WIDTH:32, prefix:"mem_", modport:Modport::slave, cap:false}
     )

@@ -1,9 +1,18 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (c) 2025 CERN
+#
+# Please retain this header in all redistributions and modifications of the code.
+
 from typing import List, Optional
+import re
+
 from systemrdl import RDLCompiler
 from systemrdl.node import AddrmapNode
 from systemrdl.rdltypes import UserStruct
+
 from .module import Module
 from .intf import IntfPort
+from .signal import Signal
 
 class AdaptersPath:
     """This class is used to find the adapter path from one to another
@@ -13,11 +22,14 @@ class AdaptersPath:
                  adapt_from : IntfPort,
                  adapt_to   : IntfPort,
                  rdlc       : RDLCompiler,
+                 intc_prefix: str="",
                  ):
 
         self.rdlc = rdlc
         self.adapt_from = adapt_from
         self.adapt_to = adapt_to
+
+        self.intc_prefix = intc_prefix
 
         self.adapters = self.createAdaptersOnPath()
 
@@ -111,7 +123,9 @@ class AdaptersPath:
 
         # Generate a unique instance name
         # TODO Change the generated name to something more clear (now it uses the first found slave by default for adapt_from)
-        inst_name = ad_type + "_" + adapt_from.module.node.get_path().replace(".", "_") + "2" + adapt_to.module.node.get_path().replace(".", "_")
+        inst_name = ad_type # + "_" + adapt_from.module.node.get_path().replace(".", "_") + "2" + adapt_to.module.node.get_path().replace(".", "_")
+        if self.intc_prefix:
+            inst_name += "_" + self.intc_prefix
         # Elaborate the interface SystemRDL compiler, overrides the adapter instance name,
         # and get the addrmap no handle by getting the root node child
         adapter_node = self.rdlc.elaborate(
@@ -204,6 +218,20 @@ class Adapter(Module):
 
         super().__init__(self.node, self.rdlc) # type: ignore
 
+    # Overloading base class Module function
+    def getSigVerilogName(self, s: Signal) -> str:
+        """Returns the module/node instance name appended with the end node and signal instance name."""
+        # Used for internal connection within a module, remove any port-specific suffix for better readability
+        signal_name = s.name
+        # This function is called only for internal signals, so remove any standard suffix
+        # Regex pattern
+        match_pattern = r"_(ni|nio|i|o|io|no)([A|B|C]?)$"
+        replace_pattern = r"\2"
+        if re.search(match_pattern, signal_name):
+            # Perform the regex replacement
+            signal_name = re.sub(match_pattern, replace_pattern, signal_name)
+        return self.node.inst_name + "_" + self.end_node_name + "_" + signal_name
+
     @property
     def size(self) -> int:
         return self.addr_map_size
@@ -231,3 +259,11 @@ class Adapter(Module):
                     orig_intf=self.end_intf,
                     ))
         return intfs
+
+    @property
+    def end_node_name(self):
+        # If another adapter has been added skip it until we reach the base module
+        if self.end_intf.module.node.get_property("adapter"):
+            return self.end_intf.module.end_node_name
+        else:
+            return self.end_intf.module.node.inst_name

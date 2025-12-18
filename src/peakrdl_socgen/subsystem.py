@@ -1,7 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (c) 2025 CERN
+#
+# Please retain this header in all redistributions and modifications of the code.
+
 from systemrdl import RDLCompiler, RDLListener
 from systemrdl.node import AddrmapNode
 from typing import List
 import logging
+import re
 
 from .signal import Signal
 from .module import Module
@@ -214,6 +220,95 @@ class Subsystem(Module): # TODO is module and subsystem the same?
                 subsys_logger.warning(f'No matching reset found, using the first as default. Connecting reset: {self.getOrigTypeName()}.{subsys_rsts[0].name} to: {m.getOrigTypeName()}.{s.name}')
                 return subsys_rsts[0]
 
+    def getMatchingSignal(self, submodule: Module, submodule_signal: Signal) -> Signal:
+        subsys_logger.debug(f"Subsystem {self.node.inst_name} - getMatchingSignal: {self.node.inst_name} has {submodule_signal.name}?")
+
+        # Create signal full path to check
+        submodule_signal_path = f"{submodule.node.inst_name}.{submodule_signal.name}"
+
+        # Check explicit port signals
+        for s in self.port_signals:
+            # explicit port signal contains the 'path' property to give the connection path from/to it
+            path = s.node.get_property("path", default="")
+            path_list = path.split(';')
+            # We compare also against s.name (compared to hasConnection) because here we can use the internal
+            # signals to make the connection
+            if submodule_signal.name == s.name:
+                subsys_logger.debug(f"Yes (explicit port signal)")
+                return s
+            for p in path_list:
+                if p == submodule_signal_path:
+                    return s
+
+        # Regex pattern to check if signal name is present or not in the submodule
+        # The signal is check independently of the standard port naming conventions
+        regex_pattern = rf"^{re.escape(submodule_signal_path)}"
+
+        # Check internal signals
+        for s in self.internal_signals:
+            subsys_logger.debug(f"Subsystem - getMatchingSignal: checking internal signal {s.name}")
+            # Check the full path name
+            to_path = s.node.get_property("to", default="")
+            to_path_list = to_path.split(';')
+            from_path = s.node.get_property("from", default="")
+            subsys_logger.debug(f"Subsystem - getMatchingSignal: internal signal to_path: {to_path}")
+            subsys_logger.debug(f"Subsystem - getMatchingSignal: internal signal from_path: {from_path}")
+            # Check the full from path
+            if re.fullmatch(regex_pattern, from_path):
+                subsys_logger.debug(f"Yes (internal from_path signal)")
+                return s
+            # Check to paths
+            for p in to_path_list:
+                if re.fullmatch(regex_pattern, p):
+                    subsys_logger.debug(f"Yes (internal to_path signal)")
+                    return s
+
+        assert False, f"The subsystem submodule {submodule.node.inst_name} does not contain the signal {submodule_signal.name}"
+
+    def hasConnection(self, submodule: Module, submodule_signal: Signal) -> bool:
+        """Returns True if the module has a connection signal matching the given one."""
+        subsys_logger.debug(f"Subsystem {self.node.inst_name}/{submodule.node.inst_name} - hasConnection: {self.node.inst_name} has {submodule_signal.name} connected to a module?")
+
+        # Create signal full path to check
+        submodule_signal_path = f"{submodule.node.inst_name}.{submodule_signal.name}"
+
+        # Check explicit port signals
+        for s in self.port_signals:
+            # explicit port signal contains the 'path' property to give the connection path from/to it
+            path = s.node.get_property("path", default="")
+            path_list = path.split(';')
+            # We don't check against s.name directly (compared to getMatchingSignal) because we don't
+            # want a connection just because the subsystem as a port with the same name than one of its
+            # submodules
+            if submodule_signal_path in path_list:
+                subsys_logger.debug(f"Yes (explicit port signal)")
+                return True
+
+
+        # Regex pattern to check if signal name is present or not in the submodule
+        # The signal is check independently of the standard port naming conventions
+        regex_pattern = rf"^{re.escape(submodule_signal_path)}(_(ni|nio|i|o|io|no))?$"
+
+        # Check internal signals
+        for s in self.internal_signals:
+            subsys_logger.debug(f"Subsystem - hasConnection: checking internal signal {s.name}")
+            # Keep only the ultimate path name
+            to_path = s.node.get_property("to", default="")
+            to_path_list = to_path.split(';')
+            from_path = s.node.get_property("from", default="")
+            # Check from paths
+            if re.fullmatch(regex_pattern, from_path):
+                subsys_logger.debug(f"Yes (internal from_path signal)")
+                return True
+            # Check to paths
+            for p in to_path_list:
+                if re.fullmatch(regex_pattern, p):
+                    subsys_logger.debug(f"Yes (internal to_path signal)")
+                    return s
+
+        subsys_logger.debug(f"No")
+        return False
+
     def getEndpoints(self) -> List[IntfPort]:
         """Returns a list of children module/subsystem slave ports and subsystem master ports."""
         # Get all the slave ports of the children modules and subsystems
@@ -259,6 +354,7 @@ class Subsystem(Module): # TODO is module and subsystem the same?
                     adapt_from=slv_ports[0], # For now all slaves are identical
                     adapt_to=p,
                     rdlc=self.rdlc,
+                    intc_prefix=inst_prefix
                     )
                   )
 

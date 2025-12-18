@@ -1,10 +1,17 @@
-from typing import  Dict, Any, List
-from systemrdl import AddrmapNode, RDLCompiler, RDLWalker
-from systemrdl.node import Node, RootNode
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (c) 2025 CERN
+#
+# Please retain this header in all redistributions and modifications of the code.
+
 import os
 import jinja2
 import logging
+from typing import  Dict, Any, List
+from datetime import datetime
+from systemrdl.node import Node, RootNode
+from systemrdl import AddrmapNode, RDLCompiler, RDLWalker
 
+from .__about__ import __version__
 from .subsystem import Subsystem, SubsystemListener
 
 # Logger generation for halnode module
@@ -120,6 +127,8 @@ class SocExporter():
         walker.walk(top_node, listener)
         subsystems = [Subsystem(x, rdlc) for x in listener.subsystem_nodes]
 
+        date_time_now = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+
         for subsys in subsystems:
             export_logger.info(f'Generating subsystem {subsys.node.inst_name}.')
             subsys_inj_files = []
@@ -130,10 +139,12 @@ class SocExporter():
 
             # Context for the jinja template
             context = {
-                    'subsys': subsys,
-                    'inj_f': subsys_inj_files,
-                    'use_include': use_include,
-                    }
+                'subsys': subsys,
+                'inj_f': subsys_inj_files,
+                'use_include': use_include,
+                'socgen_version': __version__,
+                'date_time': date_time_now,
+            }
             # Generate the subsystem files
             text = self.process_subsystem_template(context, self.subsystem_template)
             # Generate the file absolute path
@@ -143,7 +154,7 @@ class SocExporter():
                 f.write(text)
 
         # Generate the addrmap package file
-        text = self.process_arrdmap_pkg_template(subsystems, self.addrmap_pkg_template)
+        text = self.process_arrdmap_pkg_template(subsystems, date_time_now, self.addrmap_pkg_template)
         # Generate the file absolute path
         out_file = os.path.join(outdir, self.addrmap_pkg_template.replace(".j2", ""))
         # Write the content to the file
@@ -154,8 +165,10 @@ class SocExporter():
         # Generate the graph dot file if flag is set
         if gen_dot:
             context = {
-                    'subsystems': subsystems
-                    }
+                'subsystems': subsystems,
+                'socgen_version': __version__,
+                'date_time': date_time_now,
+            }
             # Generate the file content
             text = self.process_dot_template(context, self.dot_template)
             # Generate the file absolute path
@@ -164,7 +177,7 @@ class SocExporter():
             with open(out_file, 'w') as f:
                 f.write(text)
 
-    def process_arrdmap_pkg_template(self, subsystems, template: str) -> str:
+    def process_arrdmap_pkg_template(self, subsystems, date_time_now, template: str) -> str:
         """Template processing for addrmap package generation."""
 
         # for subsys in subsystems:
@@ -191,6 +204,8 @@ class SocExporter():
         context = {
             'subsystems': subsystems,
             'RootNode'  : RootNode,
+            'socgen_version': __version__,
+            'date_time': date_time_now,
         }
 
         res = env.get_template(template).render(context)
@@ -208,7 +223,7 @@ class SocExporter():
             'path_conv': SocExporter.dot_to_uscore,
             'get_file_content': SocExporter.get_file_content,
             'get_file_name': SocExporter.get_file_name,
-            })
+        })
 
         res = env.get_template(template).render(context)
         return res
@@ -223,8 +238,8 @@ class SocExporter():
 
         env.filters.update({
             'path_conv': SocExporter.dot_to_uscore,
-            'short': SocExporter.short_str
-            })
+            'short': SocExporter.short_str,
+        })
 
         res = env.get_template(template).render(context, zip=zip)
         return res

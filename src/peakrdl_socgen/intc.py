@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (c) 2025 CERN
+#
+# Please retain this header in all redistributions and modifications of the code.
+
 from systemrdl import RDLCompiler
 from systemrdl.node import AddrmapNode
 from systemrdl.rdltypes.array import ArrayedType
@@ -35,7 +40,7 @@ class Intc(Module):
         self.type_name = ext_slv_ports[0].type.replace("_intf_node", "_interconnect")
 
         # Instance name using prefix + base name
-        self.inst_name = self.inst_prefix + self.type_name + "_i"
+        self.inst_name = self.inst_prefix + self.type_name
 
         all_ports = [*self.ext_slv_ports, *self.ext_mst_ports]
         same_intf = all(x.type == all_ports[0].type for x in all_ports)
@@ -124,7 +129,7 @@ class Intc(Module):
                         params['SLAVE_MASK'].append(mask)
 
             elif p.name == "SOCGEN_XBAR_ADDR_RULES":# and isinstance(p.param_type, str): # TODO why not working
-                sv_intc_prefix = self.inst_name.replace("interconnect_i", "intc").upper() + "_ADDR_RULES"
+                sv_intc_prefix = self.inst_name.replace("interconnect", "intc").upper() + "_ADDR_RULES"
                 params['SOCGEN_XBAR_ADDR_RULES'] = sv_intc_prefix
 
         return params

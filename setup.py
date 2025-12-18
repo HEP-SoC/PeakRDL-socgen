@@ -13,15 +13,13 @@ with open(os.path.join("src/peakrdl_socgen", "__about__.py"), encoding='utf-8') 
 setuptools.setup(
     name="peakrdl-socgen",
     version=version,
-    author="Risto Pejasinovic",
-    author_email="risto.pejasinovic@gmail.com",
+    author="CERN",
+    author_email="socrates@cern.ch",
     description="Generate SoC interconnect",
     long_description=long_description,
-    url="https://gitlab.cern.ch/socrates/peakrdl/PeakRDL-socgen",
+    url="https://github.com/HEP-SoC/PeakRDL-socgen",
     package_dir={'': 'src'},
-    packages=[
-        'peakrdl_socgen',
-    ],
+    packages=['peakrdl_socgen'],
     package_data={'peakrdl_socgen' : ['templates/*']},
     include_package_data=True,
     install_requires=[
@@ -51,7 +49,7 @@ setuptools.setup(
         "Topic :: Hardware Development :: Documentation",
     ),
     project_urls={
-        "Source": "https://gitlab.cern.ch/socrates/peakrdl/PeakRDL-socgen",
-        "Tracker": "https://gitlab.cern.ch/socrates/peakrdl/PeakRDL-socgen/issues",
+        "Source": "https://github.com/HEP-SoC/PeakRDL-socgen",
+        "Tracker": "https://github.com/HEP-SoC/PeakRDL-socgen/issues",
     },
 )

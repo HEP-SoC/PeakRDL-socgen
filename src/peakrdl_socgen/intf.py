@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (c) 2025 CERN
+#
+# Please retain this header in all redistributions and modifications of the code.
+
 from typing import TYPE_CHECKING, Dict, Optional, List
 from systemrdl import RDLCompiler
 from systemrdl.node import AddrmapNode
@@ -54,7 +59,16 @@ class IntfPort:
         #     DATA_WIDTH:32,
         #     prefix:"s_",
         #     modport:Modport::slave,
-        #     cap:false
+        #     cap:false,
+        #     // Regex property
+        #     // each \ character must be escaped twice to get "([ABC])_([io])$::_\2\1"
+        #     // applied by the regex python code:
+        #     // 1. systemrdl compiler removes the first escape \
+        #     // 2. eval call from peakrdl-socgen removes the second one
+        #     // This is used to have compatiblity between peakrdl-socgen using _i/o/io format
+        #     // and tmrg appending blindly A/B/C to input/ouput TMR signals
+        #     // Example: obi_reqA_i --> obi_req_iA
+        #     regex:"match_pattern::replace_pattern"
         # }
         for k in self.params._values:
             setattr(self, k, self.params._values[k])
@@ -121,6 +135,14 @@ class IntfPort:
             intf_type_str += f"{k}: {val_str}, "
 
         return intf_type_str[:-2] + "}" # Delete last comma
+
+    def get_module_name(self):
+        """Returns the base module name containing the port interface"""
+        # If an adapter has been added skip it until we reach the base module
+        if self.module.node.get_property("adapter"):
+            return self.module.end_node_name
+        else:
+            return self.module.node.inst_name
 
     @staticmethod
     def create_intf_port(rdlc: RDLCompiler, module: 'Module', intf_struct) -> List['IntfPort']:

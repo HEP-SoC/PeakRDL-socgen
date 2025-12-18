@@ -6,6 +6,7 @@ from peakrdl.config import schema #pylint: disable=import-error
 
 from systemrdl.node import AddrmapNode
 
+from .__about__ import __version__
 from .exporter import  SocExporter
 
 if TYPE_CHECKING:
@@ -58,6 +59,13 @@ class Exporter(ExporterSubcommandPlugin):
             default=False,
             action="store_true",
             help="Generate also block diagram of the generated SoC in graphviz dot format."
+        )
+
+        arg_group.add_argument(
+            "-v", "--version",
+            dest="version",
+            action="version",
+            version='%(prog)s ' + __version__
         )
 
     def do_export(self, top_node: 'AddrmapNode', options: 'argparse.Namespace') -> None:

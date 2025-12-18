@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (c) 2025 CERN
+#
+# Please retain this header in all redistributions and modifications of the code.
+
 cmake_minimum_required(VERSION 3.25)
 project(apb_soc NONE)
 
@@ -19,6 +24,6 @@ ip_sources(${IP} SYSTEMRDL
 ip_link(${IP}
     cern::socgen::base
     cern::socgen::apb
-    )
+)
 
 peakrdl_socgen(${PROJECT_NAME})
