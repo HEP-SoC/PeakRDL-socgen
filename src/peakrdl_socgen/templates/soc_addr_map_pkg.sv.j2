@@ -7,6 +7,9 @@
 // Version: {{ socgen_version }}
 // Date: {{ date_time }}
 
+`ifndef SOC_ADDR_MAP_SV
+`define SOC_ADDR_MAP_SV
+
 package soc_addr_map_pkg;
 
   typedef struct packed {
@@ -58,3 +61,4 @@ package soc_addr_map_pkg;
 
 endpackage
 
+`endif // SOC_ADDR_MAP_SV
