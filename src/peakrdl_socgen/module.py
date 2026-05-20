@@ -142,6 +142,8 @@ class Module:
 
         hw_params = []
         for cnt, param in enumerate(params):
+            if param.name.startswith("RDL_"):
+                continue
             if isinstance(param.param_type, ArrayedType) and param.param_type.element_type == int:
                 param_tmp = {'name': param.name, 'value': self.paramIntArrayToStr(param.get_value())}
             elif param.param_type == str:
