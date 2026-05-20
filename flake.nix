@@ -14,7 +14,7 @@
 
         peakrdl-socgen = python.pkgs.buildPythonPackage {
           pname = "peakrdl-socgen";
-          version = "0.1.6";
+          version = "0.1.9";
           format = "setuptools";
 
           src = self;
