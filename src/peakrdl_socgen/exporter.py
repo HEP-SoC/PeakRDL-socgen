@@ -6,13 +6,14 @@
 import os
 import jinja2
 import logging
-from typing import  Dict, Any, List
+from typing import  Dict, Any, List, Optional
 from datetime import datetime
 from systemrdl.node import Node, RootNode
 from systemrdl import AddrmapNode, RDLCompiler, RDLWalker
 
 from .__about__ import __version__
 from .subsystem import Subsystem, SubsystemListener
+from .tmr import TmrConfig, TmrContext, register_tmr_udps
 
 # Logger generation for halnode module
 export_logger = logging.getLogger("export_logger")
@@ -67,15 +68,11 @@ class SocExporter():
     #     else:
     #         return node.inst_name
 
-    def list_files(self, top_node: 'AddrmapNode', intfs: 'List[str]', outdir: str):
+    def list_files(self, top_node: 'AddrmapNode', intfs: 'List[str]', outdir: str, tmr: Optional[TmrConfig] = None):
         """List the files that will generated."""
 
-        # Retrieve the AddrmapNodes with the 'subsystem' property set
-        walker = RDLWalker(unroll=True)
-        listener = SubsystemListener()
-        walker.walk(top_node, listener)
         rdlc = self.compile_glue(intfs)
-        subsystems = [Subsystem(x, rdlc) for x in listener.subsystem_nodes]
+        subsystems = self.get_subsystems(top_node, rdlc, tmr)
 
         out_files = [os.path.join(outdir, self.addrmap_pkg_template.replace(".j2", ""))]
         out_files += [os.path.join(outdir, s.getOrigTypeName() + self.subsystem_ext) for s in subsystems]
@@ -83,9 +80,19 @@ class SocExporter():
         # Print files to stdout
         print(*out_files)
 
+    def get_subsystems(self, top_node: 'AddrmapNode', rdlc: RDLCompiler, tmr: Optional[TmrConfig] = None) -> List[Subsystem]:
+        """Returns the Subsystem objects of the AddrmapNodes with the 'subsystem' property set."""
+        walker = RDLWalker(unroll=True)
+        listener = SubsystemListener()
+        walker.walk(top_node, listener)
+        # In TMR mode the subsystems are generated from their non-TMR description
+        tmr_ctx = TmrContext(tmr, rdlc) if tmr is not None else None
+        return [Subsystem(x, rdlc, tmr=tmr_ctx) for x in listener.subsystem_nodes]
+
     def compile_glue(self, list_intf_files: List[str]):
         """Compile and append intf files to a new RDLCompiler instance."""
         rdlc = RDLCompiler()
+        register_tmr_udps(rdlc)
         for input_file in list_intf_files:
             rdlc.compile_file(input_file)
         # Elaborate to check there is at list one valid addrmap
@@ -100,6 +107,7 @@ class SocExporter():
                vinject: 'List[str]',
                use_include: bool = False,
                gen_dot: bool = False,
+               tmr: Optional[TmrConfig] = None,
                **kwargs: 'Dict[str, Any]'
                ):
 
@@ -122,10 +130,7 @@ class SocExporter():
         rdlc = self.compile_glue(intfs)
 
         # Retrieve the AddrmapNodes with the 'subsystem' property set
-        walker = RDLWalker(unroll=True)
-        listener = SubsystemListener()
-        walker.walk(top_node, listener)
-        subsystems = [Subsystem(x, rdlc) for x in listener.subsystem_nodes]
+        subsystems = self.get_subsystems(top_node, rdlc, tmr)
 
         date_time_now = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 

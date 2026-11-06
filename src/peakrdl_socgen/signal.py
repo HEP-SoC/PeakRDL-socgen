@@ -13,13 +13,15 @@ if TYPE_CHECKING:
 
 class Signal:
     """Wrapper around a SignalNode with extended properties for verilog module generation."""
-    def __init__(self, node: SignalNode, prefix: str = "", cap: bool = False, regex: str = ""):
+    def __init__(self, node: SignalNode, prefix: str = "", cap: bool = False, regex: str = "", tmr_suffix: str = ""):
 
         self.node = node
         # Prefix appended to the signal name?
         self.prefix = prefix
+        # Suffix of a triplicated signal copy (A, B, or C), appended to the name and the path properties
+        self.tmr_suffix = tmr_suffix
         # Name of the node containing the signal
-        self.basename = node.inst_name
+        self.basename = node.inst_name + tmr_suffix
         self.regex = regex
 
         self.width = node.width
@@ -42,7 +44,7 @@ class Signal:
     @property
     def name(self):
         """Gets the signal instance name."""
-        signal_base_name = self.prefix + self.node.inst_name
+        signal_base_name = self.prefix + self.node.inst_name + self.tmr_suffix
 
         # Apply regex if existing
         if self.regex:
@@ -54,6 +56,13 @@ class Signal:
             signal_base_name = re.sub(match_pattern, replace_pattern, signal_base_name)
 
         return signal_base_name
+
+    def getPathProperty(self, prop_name: str) -> str:
+        """Gets a connection path property (path, from, or to) with the TMR suffix appended to each path."""
+        path = self.node.get_property(prop_name, default="")
+        if path and self.tmr_suffix:
+            path = ';'.join(p + self.tmr_suffix for p in path.split(';'))
+        return path
 
     @property
     def verilogDir(self):

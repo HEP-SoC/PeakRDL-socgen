@@ -187,7 +187,7 @@ class AdaptersPath:
                 ).get_child_by_name(inst_name)
 
         # Set the adapter address offset to the original AddrmapNode one
-        adapter_node.inst.addr_offset = adapt_to.module.node.inst.addr_offset
+        adapter_node.inst.addr_offset = adapt_to.module.addr_node.inst.addr_offset
 
         # Return an Adapter object handle containing the adapter node
         # We need to pass the original AddrmapNode size to the adapter to create the correct address map package for the SoC
