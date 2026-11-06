@@ -12,3 +12,16 @@
 
 ## 0.1.6
 * Added ~flake.nix~ for reproducible Nix-based development and packaging.
+
+## Unreleased
+* Add --tmr option generating the TMR version of a SoC from its non-TMR description: subsystem signals are
+  triplicated, interfaces are mapped to their TMR counterpart (tmr_intf property of the interface nodes or
+  --intf-map option), and leaf modules are replaced by their TMR definition (<type_name><suffix> or tmr_type
+  property). The tmr property set to false excludes a signal or an addrmap instance from triplication.
+* The address map package names are based on the non-TMR interfaces, so the non-TMR and TMR SoCs share the
+  same package.
+* Children with the ispresent property set to false are not generated.
+* Fix boolean parameters generated as True/False instead of 1'b1/1'b0.
+* Add --intc-pkg option generating the interconnect configuration (number of ports, indexes, and address rules)
+  in a separate <top>_intc_pkg package. soc_addr_map_pkg then only contains the memory map, including the
+  children not present in the design, so it is shared by all the designs generated from a SystemRDL description.
