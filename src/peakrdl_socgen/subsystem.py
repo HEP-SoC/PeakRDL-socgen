@@ -6,7 +6,7 @@
 from systemrdl import RDLCompiler, RDLListener
 from systemrdl.node import AddrmapNode, SignalNode
 from systemrdl.rdltypes.user_struct import UserStruct
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import logging
 import re
 
@@ -50,6 +50,12 @@ class Subsystem(Module): # TODO is module and subsystem the same?
     """
     def __init__(self, node: AddrmapNode, rdlc: RDLCompiler, tmr: Optional[TmrContext] = None):
         super().__init__(node, rdlc, tmr=tmr)
+
+        # Addrmap children not present in this design (ispresent = false), only part of the memory map
+        self.absent_nodes = [c for c in self.node.children(skip_not_present=False)
+                             if isinstance(c, AddrmapNode) and not c.get_property('ispresent')]
+        # Ports of the absent children listed in a user defined interconnect, with the interconnect prefix
+        self.absent_intc_ports = {}
 
         # List of all addrmap childrens (either with a Module or a Subsystem handle)
         self.modules = self.getModules()
@@ -119,6 +125,9 @@ class Subsystem(Module): # TODO is module and subsystem the same?
             ext_slv_ports = []
 
             for mst in intc.mst_ports:
+                if self.isAbsentPath(mst):
+                    self.absent_intc_ports[mst] = intc.name + "_"
+                    continue
                 intf = self.findPortInChildren(mst)
                 # Remove the intf from the default interconnect
                 if intf in self.endpoints:
@@ -126,11 +135,17 @@ class Subsystem(Module): # TODO is module and subsystem the same?
                 ext_mst_ports.append(intf)
 
             for slv in intc.slv_ports:
+                if self.isAbsentPath(slv):
+                    continue
                 intf = self.findPortInChildren(slv)
                 # Remove the intf from the default interconnect
                 if intf in self.initiators:
                     self.initiators.remove(intf)
                 ext_slv_ports.append(intf)
+
+            if not ext_mst_ports or not ext_slv_ports:
+                raise ValueError(f"Interconnect {intc.name} of {self.node.get_path()} has no master or slave "
+                                 "port present in this design, which is not supported.")
 
             intcs.append(
                     self.create_intc(
@@ -184,6 +199,43 @@ class Subsystem(Module): # TODO is module and subsystem the same?
             if (node_rel + "." + intf.prefix) == string:
                 return intf
         assert False, f"Could not find interface {string}"
+
+    def isAbsentPath(self, string: str) -> bool:
+        """Returns True if the given child relative path targets a child not present in this design."""
+        return string.split(".")[0] in [n.inst_name for n in self.absent_nodes]
+
+    def getMemoryMap(self) -> List[Tuple[Intc, List[Tuple[str, int, int]]]]:
+        """Returns the slaves (name, offset, size) of each interconnect, including the children not present
+        in this design (ispresent = false), in the order of the subsystem children.
+
+        The memory map is therefore the same for all the designs generated from a SystemRDL description,
+        whatever the present children.
+        """
+        children = [c.get_path() for c in self.node.children(skip_not_present=False)]
+
+        def child_index(node: AddrmapNode) -> int:
+            # The subsystem ports come after its children
+            path = node.get_path()
+            return children.index(path) if path in children else len(children)
+
+        mem_map = []
+        for intc in self.intcs:
+            slaves = [(child_index(p.orig_intf.module.addr_node),
+                       p.get_module_name(),
+                       p.module.addr_node.inst.addr_offset,
+                       p.module.size) for p in intc.ext_mst_ports]
+            mem_map.append((intc, slaves))
+
+        for node in self.absent_nodes:
+            for port in Module(node, self.rdlc).getSlavePorts():
+                # Absent slaves go to the interconnect they are listed in, or to the default one
+                inst_prefix = self.absent_intc_ports.get(node.inst_name + "." + port.prefix, "")
+                intc_slaves = [slaves for intc, slaves in mem_map if intc.inst_prefix == inst_prefix]
+                if not intc_slaves:
+                    raise ValueError(f"Could not find the interconnect of {node.get_path()} in this design.")
+                intc_slaves[0].append((child_index(node), node.inst_name, node.inst.addr_offset, node.size))
+
+        return [(intc, [s[1:] for s in sorted(slaves, key=lambda s: s[0])]) for intc, slaves in mem_map]
 
     def getModules(self):
         """Returns Module or Subsystem objects from node addrmap children."""

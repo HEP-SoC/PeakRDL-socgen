@@ -34,6 +34,9 @@ class SocExporter():
         self.subsystem_template = "subsystem.sv.j2"
         self.subsystem_ext = "." + self.subsystem_template.split(".")[1]
         self.addrmap_pkg_template = "soc_addr_map_pkg.sv.j2"
+        # Templates used when the interconnect configuration is generated in a separate package
+        self.mem_map_pkg_template = "soc_mem_map_pkg.sv.j2"
+        self.intc_pkg_template = "intc_pkg.sv.j2"
         self.dot_template = "soc_diagram.dot.j2"
 
     @staticmethod
@@ -68,13 +71,16 @@ class SocExporter():
     #     else:
     #         return node.inst_name
 
-    def list_files(self, top_node: 'AddrmapNode', intfs: 'List[str]', outdir: str, tmr: Optional[TmrConfig] = None):
+    def list_files(self, top_node: 'AddrmapNode', intfs: 'List[str]', outdir: str, tmr: Optional[TmrConfig] = None,
+                   intc_pkg: bool = False):
         """List the files that will generated."""
 
         rdlc = self.compile_glue(intfs)
         subsystems = self.get_subsystems(top_node, rdlc, tmr)
 
         out_files = [os.path.join(outdir, self.addrmap_pkg_template.replace(".j2", ""))]
+        if intc_pkg:
+            out_files += [os.path.join(outdir, self.get_intc_pkg_name(subsystems) + self.subsystem_ext)]
         out_files += [os.path.join(outdir, s.getOrigTypeName() + self.subsystem_ext) for s in subsystems]
 
         # Print files to stdout
@@ -88,6 +94,11 @@ class SocExporter():
         # In TMR mode the subsystems are generated from their non-TMR description
         tmr_ctx = TmrContext(tmr, rdlc) if tmr is not None else None
         return [Subsystem(x, rdlc, tmr=tmr_ctx) for x in listener.subsystem_nodes]
+
+    @staticmethod
+    def get_intc_pkg_name(subsystems: List[Subsystem]) -> str:
+        """Returns the interconnect package name, named after the top subsystem (e.g., rosaTMR_intc_pkg)."""
+        return subsystems[0].getOrigTypeName() + "_intc_pkg"
 
     def compile_glue(self, list_intf_files: List[str]):
         """Compile and append intf files to a new RDLCompiler instance."""
@@ -108,6 +119,7 @@ class SocExporter():
                use_include: bool = False,
                gen_dot: bool = False,
                tmr: Optional[TmrConfig] = None,
+               intc_pkg: bool = False,
                **kwargs: 'Dict[str, Any]'
                ):
 
@@ -134,6 +146,8 @@ class SocExporter():
 
         date_time_now = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
+        intc_pkg_name = self.get_intc_pkg_name(subsystems) if intc_pkg else None
+
         for subsys in subsystems:
             export_logger.info(f'Generating subsystem {subsys.node.inst_name}.')
             subsys_inj_files = []
@@ -147,6 +161,7 @@ class SocExporter():
                 'subsys': subsys,
                 'inj_f': subsys_inj_files,
                 'use_include': use_include,
+                'intc_pkg': intc_pkg_name,
                 'socgen_version': __version__,
                 'date_time': date_time_now,
             }
@@ -159,7 +174,19 @@ class SocExporter():
                 f.write(text)
 
         # Generate the addrmap package file
-        text = self.process_arrdmap_pkg_template(subsystems, date_time_now, self.addrmap_pkg_template)
+        if intc_pkg_name is not None:
+            # Memory map only, the interconnect configuration is in a separate package
+            pkg_context = {
+                'subsystems': subsystems,
+                'pkg_name': intc_pkg_name,
+                'socgen_version': __version__,
+            }
+            text = self.process_pkg_template(pkg_context, self.mem_map_pkg_template)
+            # Generate the interconnect package file
+            with open(os.path.join(outdir, intc_pkg_name + self.subsystem_ext), 'w') as f:
+                f.write(self.process_pkg_template(pkg_context, self.intc_pkg_template))
+        else:
+            text = self.process_arrdmap_pkg_template(subsystems, date_time_now, self.addrmap_pkg_template)
         # Generate the file absolute path
         out_file = os.path.join(outdir, self.addrmap_pkg_template.replace(".j2", ""))
         # Write the content to the file
@@ -215,6 +242,16 @@ class SocExporter():
 
         res = env.get_template(template).render(context)
         return res
+
+    def process_pkg_template(self, context: dict, template: str) -> str:
+        """Template processing for the memory map and interconnect packages generation."""
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader('%s/templates/' % os.path.dirname(__file__)),
+            trim_blocks=True,
+            lstrip_blocks=True,
+            keep_trailing_newline=True)
+
+        return env.get_template(template).render(context)
 
     def process_subsystem_template(self, context: dict, template: str) -> str:
         """Template processing for subsystem generation."""
