@@ -4,8 +4,9 @@
 # Please retain this header in all redistributions and modifications of the code.
 
 from systemrdl import RDLCompiler, RDLListener
-from systemrdl.node import AddrmapNode
-from typing import List
+from systemrdl.node import AddrmapNode, SignalNode
+from systemrdl.rdltypes.user_struct import UserStruct
+from typing import List, Optional
 import logging
 import re
 
@@ -14,6 +15,7 @@ from .module import Module
 from .intf import IntfPort
 from .intc import Intc
 from .adapter import AdaptersPath
+from .tmr import TmrContext, TMR_COPIES
 
 # Logger generation for halnode module
 subsys_logger = logging.getLogger("subsys_logger")
@@ -40,9 +42,14 @@ class SubsystemListener(RDLListener):
             self.subsystem_nodes.append(node)
 
 class Subsystem(Module): # TODO is module and subsystem the same?
-    """This class extend the Module class for subsytem (i.e., generated module)."""
-    def __init__(self, node: AddrmapNode, rdlc: RDLCompiler):
-        super().__init__(node, rdlc)
+    """This class extend the Module class for subsytem (i.e., generated module).
+
+    In TMR mode, the subsystem is generated from its non-TMR description: its signals are
+    triplicated, its interfaces mapped to their TMR counterpart, and its leaf modules replaced
+    by their TMR definition.
+    """
+    def __init__(self, node: AddrmapNode, rdlc: RDLCompiler, tmr: Optional[TmrContext] = None):
+        super().__init__(node, rdlc, tmr=tmr)
 
         # List of all addrmap childrens (either with a Module or a Subsystem handle)
         self.modules = self.getModules()
@@ -59,6 +66,23 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         # Then append the default interconnect built from the remaining initiatiors and endpoints
         self.intcs.append(self.create_intc(self.initiators, self.endpoints))
 
+
+    def getOrigTypeName(self) -> str:
+        if self.tmr is not None:
+            return self.tmr.getTypeName(self.node)
+        return super().getOrigTypeName()
+
+    def createSignals(self, node: SignalNode) -> List[Signal]:
+        """Returns the Signal object(s) of a signal node, triplicated in TMR mode."""
+        if self.tmr is not None and TmrContext.isTmr(node):
+            return [Signal(node, tmr_suffix=copy) for copy in TMR_COPIES]
+        return [Signal(node)]
+
+    def getIntfStruct(self, intf_struct: UserStruct) -> UserStruct:
+        """Returns the interface struct used to create a subsystem port, mapped to its TMR counterpart in TMR mode."""
+        if self.tmr is not None:
+            return self.tmr.getIntfStruct(intf_struct)
+        return intf_struct
 
     def getAllModules(self) -> List[Module]:
         """Returns the child modules, interconnects, and adapters."""
@@ -156,7 +180,7 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         """
         for intf in self.getChildPorts():
             # Get the relative path of the intf from this module
-            node_rel = intf.module.node.get_path().replace(self.node.get_path() + ".", "")
+            node_rel = intf.module.addr_node.get_path().replace(self.node.get_path() + ".", "")
             if (node_rel + "." + intf.prefix) == string:
                 return intf
         assert False, f"Could not find interface {string}"
@@ -166,7 +190,9 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         modules = []
         for node in self.getAddrmaps():
             if node.get_property('subsystem'):
-                modules.append(Subsystem(node, self.rdlc))
+                modules.append(Subsystem(node, self.rdlc, tmr=self.tmr))
+            elif self.tmr is not None and TmrContext.isTmr(node):
+                modules.append(Module(self.tmr.getLeafNode(node), self.rdlc, tmr=self.tmr, addr_node=node))
             else:
                 modules.append(Module(node, self.rdlc))
 
@@ -229,7 +255,7 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         # Check explicit port signals
         for s in self.port_signals:
             # explicit port signal contains the 'path' property to give the connection path from/to it
-            path = s.node.get_property("path", default="")
+            path = s.getPathProperty("path")
             path_list = path.split(';')
             # We compare also against s.name (compared to hasConnection) because here we can use the internal
             # signals to make the connection
@@ -248,9 +274,9 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         for s in self.internal_signals:
             subsys_logger.debug(f"Subsystem - getMatchingSignal: checking internal signal {s.name}")
             # Check the full path name
-            to_path = s.node.get_property("to", default="")
+            to_path = s.getPathProperty("to")
             to_path_list = to_path.split(';')
-            from_path = s.node.get_property("from", default="")
+            from_path = s.getPathProperty("from")
             subsys_logger.debug(f"Subsystem - getMatchingSignal: internal signal to_path: {to_path}")
             subsys_logger.debug(f"Subsystem - getMatchingSignal: internal signal from_path: {from_path}")
             # Check the full from path
@@ -275,7 +301,7 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         # Check explicit port signals
         for s in self.port_signals:
             # explicit port signal contains the 'path' property to give the connection path from/to it
-            path = s.node.get_property("path", default="")
+            path = s.getPathProperty("path")
             path_list = path.split(';')
             # We don't check against s.name directly (compared to getMatchingSignal) because we don't
             # want a connection just because the subsystem as a port with the same name than one of its
@@ -293,9 +319,9 @@ class Subsystem(Module): # TODO is module and subsystem the same?
         for s in self.internal_signals:
             subsys_logger.debug(f"Subsystem - hasConnection: checking internal signal {s.name}")
             # Keep only the ultimate path name
-            to_path = s.node.get_property("to", default="")
+            to_path = s.getPathProperty("to")
             to_path_list = to_path.split(';')
-            from_path = s.node.get_property("from", default="")
+            from_path = s.getPathProperty("from")
             # Check from paths
             if re.fullmatch(regex_pattern, from_path):
                 subsys_logger.debug(f"Yes (internal from_path signal)")
@@ -384,4 +410,5 @@ class Subsystem(Module): # TODO is module and subsystem the same?
                 ext_mst_ports=mst_ports,
                 subsystem_node=self.node,
                 inst_prefix=inst_prefix,
+                tmr=self.tmr,
                 )

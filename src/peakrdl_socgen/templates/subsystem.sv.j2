@@ -155,7 +155,7 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 
 {# Instantiate the child modules and subsystems (i.e., modules that are generated) #}
 {% for module in subsys.modules %}
-    // Instantiate {{ module.node.get_path() }}
+    // Instantiate {{ module.addr_node.get_path() }}
     {{ module.getOrigTypeName() }} {% if module.hdl_params|length > 0 %}#(
         {% for param in module.hdl_params %}
         .{{ param['name'] }}({{ param['value'] }}){% if not loop.last %},{% endif %}

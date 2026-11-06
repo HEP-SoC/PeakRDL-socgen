@@ -6,11 +6,14 @@
 from systemrdl import RDLCompiler
 from systemrdl.node import AddrmapNode
 from systemrdl.rdltypes.array import ArrayedType
-from typing import List, Dict, TYPE_CHECKING
+from typing import List, Dict, Optional, TYPE_CHECKING
 import math
 
 from .module import Module
 from .intf import IntfPort
+
+if TYPE_CHECKING:
+    from .tmr import TmrContext
 
 class Intc(Module):
     """Module class extension for interconnect modules."""
@@ -20,6 +23,7 @@ class Intc(Module):
             ext_mst_ports: List[IntfPort],
             subsystem_node: AddrmapNode,
             inst_prefix: str="",
+            tmr: Optional['TmrContext'] = None,
             ):
         self.rdlc = rdlc
         # List of slave/master interface ports making the interconnect
@@ -41,6 +45,11 @@ class Intc(Module):
 
         # Instance name using prefix + base name
         self.inst_name = self.inst_prefix + self.type_name
+
+        # Name used in the address map package, based on the non-TMR interface in TMR mode
+        # (e.g., obiTMR_intf_node -> obi_interconnect) so both SoCs share the same package
+        pkg_intf_type = tmr.getBaseIntfNodeType(self.intf_type) if tmr is not None else self.intf_type
+        self.pkg_name = self.inst_prefix + pkg_intf_type.replace("_intf_node", "_interconnect")
 
         all_ports = [*self.ext_slv_ports, *self.ext_mst_ports]
         same_intf = all(x.type == all_ports[0].type for x in all_ports)
@@ -129,14 +138,14 @@ class Intc(Module):
                         params['SLAVE_MASK'].append(mask)
 
             elif p.name == "SOCGEN_XBAR_ADDR_RULES":# and isinstance(p.param_type, str): # TODO why not working
-                sv_intc_prefix = self.inst_name.replace("interconnect", "intc").upper() + "_ADDR_RULES"
+                sv_intc_prefix = self.pkg_name.replace("interconnect", "intc").upper() + "_ADDR_RULES"
                 params['SOCGEN_XBAR_ADDR_RULES'] = sv_intc_prefix
 
         return params
 
     def _getSlaveNodes(self) -> List[IntfPort]:
         """TBD"""
-        return [intf.orig_intf.module.node for intf in self.ext_mst_ports]
+        return [intf.orig_intf.module.addr_node for intf in self.ext_mst_ports]
 
     def _fillOnesFromLeft(self, num, width):
         """Set to one the bits to the left of the most left bit to one up to width number of bits.

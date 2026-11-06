@@ -4,9 +4,10 @@
 # Please retain this header in all redistributions and modifications of the code.
 
 from systemrdl import RDLCompiler
-from systemrdl.node import AddrmapNode
+from systemrdl.node import AddrmapNode, SignalNode
 from systemrdl.core.parameter import Parameter
-from typing import List
+from systemrdl.rdltypes.user_struct import UserStruct
+from typing import List, Optional, TYPE_CHECKING
 import math
 import logging
 import re
@@ -15,6 +16,9 @@ from systemrdl.rdltypes.array import ArrayedType
 
 from .intf import IntfPort
 from .signal import Signal
+
+if TYPE_CHECKING:
+    from .tmr import TmrContext
 
 # Logger generation for halnode module
 module_logger = logging.getLogger("module_logger")
@@ -30,11 +34,22 @@ module_logger.addHandler(ch)
 module_logger.setLevel(logging.INFO)
 
 class Module:
-    def __init__(self, node: AddrmapNode, rdlc: RDLCompiler):
+    def __init__(self,
+                 node: AddrmapNode,
+                 rdlc: RDLCompiler,
+                 tmr: Optional['TmrContext'] = None,
+                 addr_node: Optional[AddrmapNode] = None,
+                 ):
         """Each module is a wrapper around an AddrmapNode and contains an RDLCompiler
-        with the interface files."""
+        with the interface files.
+
+        In TMR mode, the node of a leaf module is its TMR definition elaborated on its own,
+        so the address offset and size are taken from addr_node, the non-TMR node in the design.
+        """
         self.node = node
         self.rdlc = rdlc
+        self.tmr = tmr
+        self.addr_node = addr_node if addr_node is not None else node
 
         self.ports = self.create_ports()
 
@@ -58,7 +73,7 @@ class Module:
 
     @property
     def size(self) -> int:
-        return self.node.size
+        return self.addr_node.size
 
     def getOrigTypeName(self) -> str:
         if self.node.orig_type_name is not None:
@@ -71,12 +86,20 @@ class Module:
         internal_signals = []
         for s in self.node.signals():
             if s.get_property("input") or s.get_property("output") or s.get_property("inout"):
-                port_signals.append(Signal(s))
+                port_signals.extend(self.createSignals(s))
                 module_logger.debug(f"Module {self.node.inst_name} - getSignals: added signal {port_signals[-1].name} to port_signals of module {self.node.inst_name}")
             else:
-                internal_signals.append(Signal(s))
+                internal_signals.extend(self.createSignals(s))
                 module_logger.debug(f"Module {self.node.inst_name} - getSignals: added signal {internal_signals[-1].name} to internal_signals of module {self.node.inst_name}")
         return port_signals, internal_signals
+
+    def createSignals(self, node: SignalNode) -> List[Signal]:
+        """Returns the Signal object(s) of a signal node."""
+        return [Signal(node)]
+
+    def getIntfStruct(self, intf_struct: UserStruct) -> UserStruct:
+        """Returns the interface struct used to create a module port."""
+        return intf_struct
 
     def hasSignal(self, sig_name) -> bool:
         """Returns True if the module has a signal matching the given one."""
@@ -90,8 +113,8 @@ class Module:
         for s in self.internal_signals:
             module_logger.debug(f"Module - hasSignal: checking internal signal {s.name}")
             # Keep only the ultimate path name
-            to_path = s.node.get_property("to", default="").split('.')[-1]
-            from_path = s.node.get_property("from", default="").split('.')[-1]
+            to_path = s.getPathProperty("to").split('.')[-1]
+            from_path = s.getPathProperty("from").split('.')[-1]
             # Regex pattern to check if signal name is present or not in the module
             # The signal is check independently of the standard port naming conventions
             regex_pattern = rf"^{re.escape(sig_name)}(_(ni|nio|i|o|io|no))?$"
@@ -237,7 +260,7 @@ class Module:
 
         ports = []
         for p in all_intf_props:
-            port = IntfPort.create_intf_port(rdlc=self.rdlc, module=self, intf_struct=p)
+            port = IntfPort.create_intf_port(rdlc=self.rdlc, module=self, intf_struct=self.getIntfStruct(p))
             ports.extend(port)
 
         return ports
