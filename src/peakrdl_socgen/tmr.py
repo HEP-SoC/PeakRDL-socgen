@@ -4,7 +4,7 @@
 # Please retain this header in all redistributions and modifications of the code.
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 import logging
 
 from systemrdl import RDLCompiler
@@ -52,7 +52,15 @@ class TmrIntfUdp(UDPDefinition):
     valid_type = str
 
 
-TMR_UDPS = [TmrUdp, TmrTypeUdp, TmrIntfUdp]
+class TmrParentIntfUdp(UDPDefinition):
+    """Set to true on a subsystem (or on one of its leaf instances) so that the interface parameter of the TMR
+    leaf modules is the subsystem interface when it has the same TMR type (as with .INTF(INTF))."""
+    name = "tmr_parent_intf"
+    valid_components = {Addrmap}
+    valid_type = bool
+
+
+TMR_UDPS = [TmrUdp, TmrTypeUdp, TmrIntfUdp, TmrParentIntfUdp]
 
 
 def register_tmr_udps(rdlc: RDLCompiler) -> None:
@@ -95,7 +103,7 @@ class TmrContext:
             if self.base_intf_map.get(tmr, tmr) == tmr:
                 self.base_intf_map[tmr] = base
 
-        self._param_names_cache: Dict[str, List[str]] = {}
+        self._default_node_cache: Dict[str, AddrmapNode] = {}
 
     def _getIntfMap(self, user_map: Dict[str, str]) -> Dict[str, str]:
         """Returns the interface mapping declared on the interface nodes and overridden by the user one."""
@@ -129,19 +137,42 @@ class TmrContext:
         intf_type = intf_node_type.replace("_node", "")
         return self.base_intf_map.get(intf_type, intf_type) + "_node"
 
-    def _getParamNames(self, type_name: str) -> List[str]:
-        """Returns the parameter names of a component definition."""
-        if type_name not in self._param_names_cache:
+    def _getDefaultNode(self, type_name: str) -> AddrmapNode:
+        """Returns a component definition elaborated with its default parameters."""
+        if type_name not in self._default_node_cache:
             if type_name not in self.design_rdlc.root.comp_defs:
                 raise ValueError(f"TMR definition '{type_name}' not found, make sure the TMR IP SystemRDL files are listed.")
             node = self.design_rdlc.elaborate(top_def_name=type_name, inst_name=type_name).get_child_by_name(type_name)
-            self._param_names_cache[type_name] = [p.name for p in node.inst.parameters]
-        return self._param_names_cache[type_name]
+            self._default_node_cache[type_name] = node
+        return self._default_node_cache[type_name]
+
+    @staticmethod
+    def inheritsParentIntf(base_node: AddrmapNode) -> bool:
+        """Returns True if the TMR leaf module takes the interface of its parent subsystem."""
+        value = base_node.get_property("tmr_parent_intf", default=None)
+        if value is None:
+            value = base_node.parent.get_property("tmr_parent_intf", default=False)
+        return value is True
+
+    def _getParentIntfParams(self, base_node: AddrmapNode, type_name: str) -> Dict[str, UserStruct]:
+        """Returns the interface parameters of a TMR definition set to the TMR interface of the parent subsystem."""
+        parent_intfs = {}
+        for intf_struct in base_node.parent.get_property("ifports", default=[]):
+            tmr_struct = self.getIntfStruct(intf_struct)
+            parent_intfs[tmr_struct.__class__.__name__] = tmr_struct
+
+        params = {}
+        for p in self._getDefaultNode(type_name).inst.parameters:
+            struct_type = p.get_value().__class__.__name__
+            if isinstance(p.get_value(), UserStruct) and struct_type in parent_intfs:
+                intf_dict = parent_intfs[struct_type]._values
+                params[p.name] = self.design_rdlc.eval(IntfPort.get_intf_param_string(intf_type=struct_type, intf_dict=intf_dict))
+        return params
 
     def getLeafNode(self, base_node: AddrmapNode) -> AddrmapNode:
         """Returns the TMR definition of a leaf module elaborated with the parameters of its non-TMR instance."""
         type_name = self.getTypeName(base_node)
-        tmr_param_names = self._getParamNames(type_name)
+        tmr_param_names = [p.name for p in self._getDefaultNode(type_name).inst.parameters]
 
         params = {}
         for p in base_node.inst.parameters:
@@ -154,6 +185,9 @@ class TmrContext:
             else:
                 tmr_logger.debug(f"Parameter {p.name} of {base_node.get_path()} does not exist in {type_name}, skipped.")
 
+        # Unless it takes the interface of its parent subsystem
+        if self.inheritsParentIntf(base_node):
+            params.update(self._getParentIntfParams(base_node, type_name))
 
         root = self.design_rdlc.elaborate(top_def_name=type_name, inst_name=base_node.inst_name, parameters=params)
         return root.get_child_by_name(base_node.inst_name)
