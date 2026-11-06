@@ -54,6 +54,10 @@ class TmrIntfUdp(UDPDefinition):
 
 TMR_UDPS = [TmrUdp, TmrTypeUdp, TmrIntfUdp]
 
+# Interface struct whose members (modport, prefix, cap, regex) name the ports of a module, the members added by
+# the derived interface structs (e.g., SECDED_DATA, DATA_WIDTH) are the protocol parameters
+NAMING_INTF_STRUCT = "base_intf"
+
 
 def register_tmr_udps(rdlc: RDLCompiler) -> None:
     """Registers the TMR properties as soft UDPs (active only if declared in the RDL sources)."""
@@ -76,7 +80,8 @@ class TmrContext:
     """Derives the TMR view of a design described once, without TMR, in SystemRDL.
 
     - Leaf modules are replaced by their TMR definition (<type_name><suffix> or tmr_type)
-      elaborated with the same parameters.
+      elaborated with the same parameters. Their interfaces take the protocol members (e.g., SECDED_DATA)
+      of the parent subsystem interface of the same TMR type, if any.
     - Subsystem signals are triplicated (A, B, C) unless 'tmr = false' is set.
     - Subsystem interfaces are mapped to their TMR counterpart declared with the 'tmr_intf'
       property of the interface node (e.g., obi_intf -> obiTMR_intf).
@@ -95,7 +100,7 @@ class TmrContext:
             if self.base_intf_map.get(tmr, tmr) == tmr:
                 self.base_intf_map[tmr] = base
 
-        self._param_names_cache: Dict[str, List[str]] = {}
+        self._default_node_cache: Dict[str, AddrmapNode] = {}
 
     def _getIntfMap(self, user_map: Dict[str, str]) -> Dict[str, str]:
         """Returns the interface mapping declared on the interface nodes and overridden by the user one."""
@@ -129,19 +134,60 @@ class TmrContext:
         intf_type = intf_node_type.replace("_node", "")
         return self.base_intf_map.get(intf_type, intf_type) + "_node"
 
-    def _getParamNames(self, type_name: str) -> List[str]:
-        """Returns the parameter names of a component definition."""
-        if type_name not in self._param_names_cache:
+    def _getDefaultNode(self, type_name: str) -> AddrmapNode:
+        """Returns a component definition elaborated with its default parameters."""
+        if type_name not in self._default_node_cache:
             if type_name not in self.design_rdlc.root.comp_defs:
                 raise ValueError(f"TMR definition '{type_name}' not found, make sure the TMR IP SystemRDL files are listed.")
             node = self.design_rdlc.elaborate(top_def_name=type_name, inst_name=type_name).get_child_by_name(type_name)
-            self._param_names_cache[type_name] = [p.name for p in node.inst.parameters]
-        return self._param_names_cache[type_name]
+            self._default_node_cache[type_name] = node
+        return self._default_node_cache[type_name]
+
+    @staticmethod
+    def getProtocolMembers(intf_struct: UserStruct) -> List[str]:
+        """Returns the protocol members of an interface struct, i.e., the ones not naming the module ports."""
+        naming_members = set()
+        for cls in type(intf_struct).__mro__:
+            if cls.__name__ == NAMING_INTF_STRUCT:
+                naming_members = set(cls._members.keys())
+                break
+        return [k for k in intf_struct._members.keys() if k not in naming_members]
+
+    def _getParentIntfParams(self, base_node: AddrmapNode, type_name: str) -> Dict[str, UserStruct]:
+        """Returns the interface parameters of a TMR definition matching the TMR interface of the parent subsystem.
+
+        The TMR leaf modules are connected to the parent interconnect without adapters, so the protocol members of
+        their interface (e.g., SECDED_DATA, DATA_WIDTH) are the ones of the parent interface of the same TMR type.
+        The naming members (modport, prefix, ...) describe the TMR module ports and keep their default value.
+        """
+        parent_intfs: Dict[str, List[UserStruct]] = {}
+        for intf_struct in base_node.parent.get_property("ifports", default=[]):
+            tmr_struct = self.getIntfStruct(intf_struct)
+            parent_intfs.setdefault(tmr_struct.__class__.__name__, []).append(tmr_struct)
+
+        params = {}
+        for p in self._getDefaultNode(type_name).inst.parameters:
+            default = p.get_value()
+            if not isinstance(default, UserStruct):
+                continue
+            struct_type = default.__class__.__name__
+            matches = parent_intfs.get(struct_type, [])
+            if not matches:
+                continue
+            if len(matches) > 1:
+                raise ValueError(f"Parameter {p.name} of {type_name} ({base_node.get_path()}) matches several "
+                                 f"{struct_type} interfaces of {base_node.parent.get_path()}, cannot select one.")
+            protocol_members = self.getProtocolMembers(default)
+            parent_values = matches[0]._values
+            intf_dict = {k: parent_values[k] if k in protocol_members else v for k, v in default._values.items()}
+            # Built directly (not evaluated from a string) to keep the escaped string members (e.g., regex) as is
+            params[p.name] = type(default)(intf_dict)
+        return params
 
     def getLeafNode(self, base_node: AddrmapNode) -> AddrmapNode:
         """Returns the TMR definition of a leaf module elaborated with the parameters of its non-TMR instance."""
         type_name = self.getTypeName(base_node)
-        tmr_param_names = self._getParamNames(type_name)
+        tmr_param_names = [p.name for p in self._getDefaultNode(type_name).inst.parameters]
 
         params = {}
         for p in base_node.inst.parameters:
@@ -154,6 +200,8 @@ class TmrContext:
             else:
                 tmr_logger.debug(f"Parameter {p.name} of {base_node.get_path()} does not exist in {type_name}, skipped.")
 
+        # Except for the protocol members of the interfaces matching the parent subsystem ones
+        params.update(self._getParentIntfParams(base_node, type_name))
 
         root = self.design_rdlc.elaborate(top_def_name=type_name, inst_name=base_node.inst_name, parameters=params)
         return root.get_child_by_name(base_node.inst_name)
