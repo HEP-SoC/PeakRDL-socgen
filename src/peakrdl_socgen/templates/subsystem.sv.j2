@@ -33,6 +33,9 @@ module {{ subsys.getOrigTypeName() }} {% if subsys.hdl_params|length > 0 %} #(
 
     // Generated soc address mapping for interconnect generation
     import soc_addr_map_pkg::*;
+{% if intc_pkg %}
+    import {{ intc_pkg }}::*;
+{% endif %}
 
 /*========================================================================================
 *============================ Internal signals ===========================================

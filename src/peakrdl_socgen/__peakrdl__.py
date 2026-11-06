@@ -94,6 +94,17 @@ class Exporter(ExporterSubcommandPlugin):
         )
 
         arg_group.add_argument(
+            "--intc-pkg",
+            dest="intc_pkg",
+            default=False,
+            action="store_true",
+            help="Generate the interconnect configuration (number of ports, indexes, and address rules) in a \
+                separate <top>_intc_pkg package. soc_addr_map_pkg then only contains the memory map, including \
+                the slaves not present in the design (ispresent = false), so it is the same for all the designs \
+                generated from a SystemRDL description (e.g., non-TMR and TMR)."
+        )
+
+        arg_group.add_argument(
             "-v", "--version",
             dest="version",
             action="version",
@@ -113,7 +124,7 @@ class Exporter(ExporterSubcommandPlugin):
         tmr = self.get_tmr_config(options) if options.tmr else None
 
         if options.list_files:
-            soc.list_files(top_node, options.intfs, options.output, tmr=tmr)
+            soc.list_files(top_node, options.intfs, options.output, tmr=tmr, intc_pkg=options.intc_pkg)
         else:
             soc.export(
                 top_node=top_node,
@@ -123,6 +134,7 @@ class Exporter(ExporterSubcommandPlugin):
                 use_include=options.use_include,
                 gen_dot=options.gen_dot,
                 tmr=tmr,
+                intc_pkg=options.intc_pkg,
             )
 
     @staticmethod
