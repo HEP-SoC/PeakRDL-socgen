@@ -148,6 +148,8 @@ class Module:
                 param_tmp = {'name': param.name, 'value': self.paramIntArrayToStr(param.get_value())}
             elif param.param_type == str:
                 param_tmp = {'name': param.name, 'value': '""' if param.get_value() == "" else param.get_value()}
+            elif isinstance(param.get_value(), bool):
+                param_tmp = {'name': param.name, 'value': "1'b1" if param.get_value() else "1'b0"}
             else:
                 param_tmp = {'name': param.name, 'value': param.get_value()}
             hw_params.append(param_tmp)
