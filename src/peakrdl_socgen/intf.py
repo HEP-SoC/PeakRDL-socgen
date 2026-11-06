@@ -52,6 +52,9 @@ class IntfPort:
         if orig_intf is None:
             self.orig_intf = self
 
+        # Interface node type of the description when the port is mapped to its TMR counterpart
+        self.base_type: Optional[str] = None
+
         # Iterate over the intf structure and set the attribute to the class object
         # Example of an apb intf structure:
         # apb_intf'{

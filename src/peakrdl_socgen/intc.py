@@ -48,7 +48,10 @@ class Intc(Module):
 
         # Name used in the address map package, based on the non-TMR interface in TMR mode
         # (e.g., obiTMR_intf_node -> obi_interconnect) so both SoCs share the same package
-        pkg_intf_type = tmr.getBaseIntfNodeType(self.intf_type) if tmr is not None else self.intf_type
+        pkg_intf_type = self.intf_type
+        if tmr is not None:
+            # The described interface is known for the subsystem ports, otherwise it is derived from the mapping
+            pkg_intf_type = ext_slv_ports[0].base_type or tmr.getBaseIntfNodeType(self.intf_type)
         self.pkg_name = self.inst_prefix + pkg_intf_type.replace("_intf_node", "_interconnect")
 
         all_ports = [*self.ext_slv_ports, *self.ext_mst_ports]

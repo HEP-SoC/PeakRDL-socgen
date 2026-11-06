@@ -260,7 +260,12 @@ class Module:
 
         ports = []
         for p in all_intf_props:
-            port = IntfPort.create_intf_port(rdlc=self.rdlc, module=self, intf_struct=self.getIntfStruct(p))
+            intf_struct = self.getIntfStruct(p)
+            port = IntfPort.create_intf_port(rdlc=self.rdlc, module=self, intf_struct=intf_struct)
+            if intf_struct is not p:
+                # Mapped to its TMR counterpart, keep the described interface for the address map naming
+                for intf in port:
+                    intf.base_type = p.__class__.__name__.replace('intc', 'intf') + "_node"
             ports.extend(port)
 
         return ports
