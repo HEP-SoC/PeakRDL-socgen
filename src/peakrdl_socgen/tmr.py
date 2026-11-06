@@ -88,8 +88,12 @@ class TmrContext:
 
         # Non-TMR to TMR interface struct names, e.g., {'obi_intf': 'obiTMR_intf'}
         self.intf_map = self._getIntfMap(config.intf_map)
-        # TMR to non-TMR interface struct names
-        self.base_intf_map = {v: k for k, v in self.intf_map.items()}
+        # TMR to non-TMR interface struct names, an interface kept as is in TMR (e.g., apb_rt_intf) is the
+        # non-TMR one only if no other interface is mapped to it (e.g., apb_intf -> apb_rt_intf)
+        self.base_intf_map: Dict[str, str] = {}
+        for base, tmr in self.intf_map.items():
+            if self.base_intf_map.get(tmr, tmr) == tmr:
+                self.base_intf_map[tmr] = base
 
         self._param_names_cache: Dict[str, List[str]] = {}
 
